@@ -1,0 +1,19 @@
+{
+  "name": "unilab-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.15.0",
+    "axios": "^1.4.0",
+    "react-scripts": "5.0.1",
+    "date-fns": "^2.30.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  },
+  "eslintConfig": { "extends": ["react-app"] },
+  "browserslist": { "production": [">0.2%"], "development": ["last 1 chrome version"] }
+}
