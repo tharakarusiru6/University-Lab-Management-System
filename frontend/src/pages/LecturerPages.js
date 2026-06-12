@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import api from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { Button, Card, Badge, Modal, Input, Select, Spinner, EmptyState, StatusBadge } from '../components/common/UI';
-import { ClipboardIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, CalendarPlusIcon, CalendarIcon, ClockIcon, FlaskIcon, MapPinIcon } from '../components/common/Icons';
+import { ClipboardIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, CalendarPlusIcon, CalendarIcon, ClockIcon, FlaskIcon, MapPinIcon, UsersGroupIcon } from '../components/common/Icons';
 
 const TIME_SLOTS = ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00'];
 const SLOT_LABELS = { '08:00-10:00': '8:00 AM – 10:00 AM', '10:00-12:00': '10:00 AM – 12:00 PM', '12:00-14:00': '12:00 PM – 2:00 PM', '14:00-16:00': '2:00 PM – 4:00 PM' };
@@ -221,6 +221,7 @@ function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [studentModal, setStudentModal] = useState(null); // holds the batch object
 
   const load = useCallback(() => {
     setLoading(true);
@@ -265,8 +266,24 @@ function MyBookingsPage() {
                 </div>
                 <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
                   <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student Batch</div>
-                  <div>{b.studentBatch?.name}</div>
-                  <div style={{ color: 'var(--text2)', fontSize: '12px' }}>{b.studentBatch?.academicYear} · {b.studentBatch?.focusArea}</div>
+                  <div style={{ fontWeight: '500' }}>{b.studentBatch?.name}</div>
+                  <div style={{ color: 'var(--text2)', fontSize: '12px', marginTop: '2px' }}>{b.studentBatch?.academicYear} · {b.studentBatch?.focusArea}</div>
+                  {b.studentBatch?.students?.length > 0 && (
+                    <button
+                      onClick={() => setStudentModal(b.studentBatch)}
+                      style={{
+                        marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                        padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)',
+                        background: 'var(--bg2)', color: 'var(--primary, #4f6ef7)',
+                        fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-glow, rgba(79,142,247,0.12))'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'var(--bg2)'}
+                    >
+                      <UsersGroupIcon size={12} />
+                      View {b.studentBatch.students.length} Students
+                    </button>
+                  )}
                 </div>
               </div>
               {b.purpose && (
@@ -288,6 +305,47 @@ function MyBookingsPage() {
           ))}
         </div>
       )}
+
+      {/* Student List Modal */}
+      <Modal open={!!studentModal} onClose={() => setStudentModal(null)} title={studentModal ? `${studentModal.name} — Students` : ''}>
+        {studentModal && (
+          <div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <Badge color="accent">{studentModal.academicYear}</Badge>
+              <Badge color="neutral">{studentModal.focusArea}</Badge>
+              <Badge color="info">{studentModal.students.length} students</Badge>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'auto' }}>
+              {studentModal.students.map((s, i) => (
+                <div key={s._id || i} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '10px 12px', borderRadius: '8px',
+                  background: 'var(--bg3)', border: '1px solid var(--border)',
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--primary-glow, rgba(79,142,247,0.15))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', fontWeight: '600', color: 'var(--primary, #4f6ef7)',
+                  }}>
+                    {s.name ? s.name.charAt(0).toUpperCase() : i + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{s.name}</div>
+                    {s.registrationNumber && (
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '1px' }}>{s.registrationNumber}</div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', flexShrink: 0 }}>#{i + 1}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setStudentModal(null)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

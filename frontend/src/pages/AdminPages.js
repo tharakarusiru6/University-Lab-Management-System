@@ -318,6 +318,7 @@ function BatchesPage() {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [studentModal, setStudentModal] = useState(null);
   const [form, setForm] = useState({ name: '', academicYear: '', focusArea: '' });
 
   const load = useCallback(async () => {
@@ -364,12 +365,61 @@ function BatchesPage() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                {b.students?.length > 0 && (
+                  <Button size="sm" variant="secondary" onClick={() => setStudentModal(b)}>
+                    <UsersGroupIcon size={13} /> View Students
+                  </Button>
+                )}
                 <Button size="sm" variant="danger" onClick={() => deleteBatch(b._id)}>Delete</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Student List Modal */}
+      <Modal open={!!studentModal} onClose={() => setStudentModal(null)} title={studentModal ? `${studentModal.name} — Students` : ''}>
+        {studentModal && (
+          <div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <Badge color="accent">{studentModal.academicYear}</Badge>
+              <Badge color="neutral">{studentModal.focusArea}</Badge>
+              <Badge color="info">{studentModal.students.length} student{studentModal.students.length !== 1 ? 's' : ''}</Badge>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'auto' }}>
+              {studentModal.students.map((s, i) => (
+                <div key={s._id || i} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '10px 12px', borderRadius: '8px',
+                  background: 'var(--bg3)', border: '1px solid var(--border)',
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: 'rgba(79,142,247,0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', fontWeight: '600', color: '#4f6ef7',
+                  }}>
+                    {s.name ? s.name.charAt(0).toUpperCase() : (i + 1)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{s.name}</div>
+                    {s.registrationNumber && (
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '1px' }}>{s.registrationNumber}</div>
+                    )}
+                    {s.email && (
+                      <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{s.email}</div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', flexShrink: 0 }}>#{i + 1}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setStudentModal(null)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={modal} onClose={() => setModal(false)} title="Create Student Batch">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
