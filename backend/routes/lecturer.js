@@ -28,7 +28,7 @@ router.get('/bookings', ...lecturerAccess, async (req, res) => {
   try {
     const bookings = await Booking.find({ lecturer: req.user._id })
       .populate('lab', 'name location')
-      .populate('studentBatch', 'name academicYear focusArea')
+      .populate({ path: 'studentBatch', select: 'name academicYear focusArea students', populate: { path: 'students', select: 'name registrationNumber email' } })
       .populate('handledBy', 'name')
       .sort({ createdAt: -1 });
     res.json(bookings);
