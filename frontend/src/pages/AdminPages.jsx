@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
-import api from '../utils/api';
-import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
-import { Button, Card, Badge, Modal, Input, Select, Spinner, EmptyState, StatusBadge } from '../components/common/UI';
-import { UsersIcon, AlertCircleIcon, FlaskIcon, GraduationIcon, ClipboardIcon, UserCheckIcon, UserXIcon, PlusIcon, EditIcon, TrashIcon, MapPinIcon, UsersGroupIcon, KeyIcon, RefreshIcon } from '../components/common/Icons';
+import api from '../utils/api.js';
+import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Button, Card, Badge, Modal, Input, Select, Spinner, EmptyState, StatusBadge } from '../components/common/UI.jsx';
+import { UsersIcon, AlertCircleIcon, FlaskIcon, GraduationIcon, ClipboardIcon, UserCheckIcon, UserXIcon, PlusIcon, EditIcon, TrashIcon, MapPinIcon, UsersGroupIcon, KeyIcon, RefreshIcon } from '../components/common/Icons.jsx';
 
 const ACADEMIC_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const FOCUS_AREAS = ['Computer Science', 'Information Technology', 'Software Engineering', 'Cybersecurity', 'Data Science', 'Network Engineering', 'Artificial Intelligence'];

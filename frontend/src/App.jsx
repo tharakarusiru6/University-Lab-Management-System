@@ -1,14 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
-import Layout from './components/common/Layout';
-import { LoginPage, RegisterPage } from './pages/AuthPages';
-import AdminApp from './pages/AdminPages';
-import LecturerApp from './pages/LecturerPages';
-import AssistantApp from './pages/AssistantPages';
-import StudentApp from './pages/StudentPages';
-import { Spinner } from './components/common/UI';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { ToastProvider } from './context/ToastContext.jsx';
+import Layout from './components/common/Layout.jsx';
+import { LoginPage, RegisterPage } from './pages/AuthPages.jsx';
+import AdminApp from './pages/AdminPages.jsx';
+import LecturerApp from './pages/LecturerPages.jsx';
+import AssistantApp from './pages/AssistantPages.jsx';
+import StudentApp from './pages/StudentPages.jsx';
+import { Spinner } from './components/common/UI.jsx';
 import './index.css';
 
 function ProtectedRoute({ children, role }) {
@@ -36,8 +36,8 @@ function HomeRedirect() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
+      <ToastProvider>
+        <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -69,8 +69,8 @@ function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </ToastProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

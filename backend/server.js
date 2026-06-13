@@ -22,7 +22,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }
 async function seedAdmin() {
   const User = require('./models/User');
   const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
 
   const existing = await User.findOne({ email: adminEmail });
   if (!existing) {
@@ -39,7 +39,7 @@ async function seedAdmin() {
   }
 }
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
     await seedAdmin();

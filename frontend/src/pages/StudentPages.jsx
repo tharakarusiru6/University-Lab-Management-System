@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import api from '../utils/api';
-import { useAuth } from '../context/AuthContext';
-import { Card, Badge, Spinner, EmptyState } from '../components/common/UI';
-import { CalendarIcon, ClockIcon, MapPinIcon, FlaskIcon, BookOpenIcon, UsersGroupIcon } from '../components/common/Icons';
+import api from '../utils/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Card, Badge, Spinner, EmptyState } from '../components/common/UI.jsx';
+import { CalendarIcon, ClockIcon, MapPinIcon, FlaskIcon, BookOpenIcon, UsersGroupIcon } from '../components/common/Icons.jsx';
 
 const SLOT_LABELS = { '08:00-10:00': '8:00 AM – 10:00 AM', '10:00-12:00': '10:00 AM – 12:00 PM', '12:00-14:00': '12:00 PM – 2:00 PM', '14:00-16:00': '2:00 PM – 4:00 PM' };
 
