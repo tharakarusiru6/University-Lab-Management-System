@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import api from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, Card, Badge, Modal, Input, Select, Spinner, EmptyState, StatusBadge } from '../components/common/UI.jsx';
-import { ClipboardIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, CalendarPlusIcon, CalendarIcon, ClockIcon, FlaskIcon, MapPinIcon, UsersGroupIcon } from '../components/common/Icons.jsx';
+import { ClipboardIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, CalendarPlusIcon, CalendarIcon, ClockIcon, FlaskIcon, MapPinIcon, UsersGroupIcon, EditIcon, TrashIcon } from '../components/common/Icons.jsx';
 
 const TIME_SLOTS = ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00'];
 const SLOT_LABELS = { '08:00-10:00': '8:00 AM – 10:00 AM', '10:00-12:00': '10:00 AM – 12:00 PM', '12:00-14:00': '12:00 PM – 2:00 PM', '14:00-16:00': '2:00 PM – 4:00 PM' };
@@ -217,20 +217,151 @@ function BookLabPage() {
 }
 
 // ── MY BOOKINGS ──────────────────────────────────────────────────────────
+function BookingCard({ b, onEdit, onCancel, onViewStudents }) {
+  const dateStr = React.useMemo(() => {
+    try {
+      return b.date ? new Date(b.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No date';
+    } catch { return 'Invalid date'; }
+  }, [b.date]);
+
+  return (
+    <Card style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <h3 style={{ fontSize: '16px', marginBottom: '4px' }}>{b.lab?.name || 'Unknown Lab'}</h3>
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>{b.lab?.location || ''}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <StatusBadge status={b.status} />
+          {b.status === 'pending' && (
+            <>
+              <button
+                onClick={() => onEdit(b)}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '7px', background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)', color: '#4f6ef7', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+              >
+                <EditIcon size={13} /> Edit
+              </button>
+              <button
+                onClick={() => onCancel(b._id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '7px', background: 'rgba(247,90,90,0.1)', border: '1px solid rgba(247,90,90,0.3)', color: 'var(--danger)', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+              >
+                <TrashIcon size={13} /> Cancel
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Info grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', fontSize: '13px' }}>
+        <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date & Time</div>
+          <div>{dateStr}</div>
+          <div style={{ color: '#7c9ef8', marginTop: '2px' }}>{SLOT_LABELS[b.timeSlot] || b.timeSlot}</div>
+        </div>
+        <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student Batch</div>
+          <div style={{ fontWeight: '500' }}>{b.studentBatch?.name || 'No batch'}</div>
+          <div style={{ color: 'var(--text2)', fontSize: '12px', marginTop: '2px' }}>
+            {[b.studentBatch?.academicYear, b.studentBatch?.focusArea].filter(Boolean).join(' · ')}
+          </div>
+          {(b.studentBatch?.students?.length ?? 0) > 0 && (
+            <button
+              onClick={() => onViewStudents(b.studentBatch)}
+              style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg2)', color: '#4f6ef7', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}
+            >
+              <UsersGroupIcon size={12} />
+              View {b.studentBatch.students.length} Students
+            </button>
+          )}
+        </div>
+      </div>
+
+      {b.purpose && (
+        <div style={{ fontSize: '13px', color: 'var(--text2)', padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <span style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Purpose: </span>
+          {b.purpose}
+        </div>
+      )}
+      {b.status === 'rejected' && b.rejectionReason && (
+        <div style={{ padding: '10px 12px', background: '#2d0f0f', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: '#fca5a5' }}>
+          <strong>Rejection Reason:</strong> {b.rejectionReason}
+        </div>
+      )}
+      {b.handledBy?.name && (
+        <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
+          Handled by {b.handledBy.name}
+          {b.handledAt ? ` · ${new Date(b.handledAt).toLocaleDateString()}` : ''}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MyBookingsPage() {
+  const { addToast } = useToast();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [studentModal, setStudentModal] = useState(null); // holds the batch object
+  const [studentModal, setStudentModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);   // booking being edited
+  const [cancelId, setCancelId] = useState(null);     // booking id to confirm cancel
+  const [editForm, setEditForm] = useState({});
+  const [labs, setLabs] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     api.get('/lecturer/bookings').then(r => setBookings(r.data)).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    api.get('/lecturer/labs').then(r => setLabs(r.data)).catch(() => {});
+    api.get('/lecturer/batches').then(r => setBatches(r.data)).catch(() => {});
+  }, [load]);
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
+
+  const openEdit = (b) => {
+    let dateStr = '';
+    try { dateStr = b.date ? new Date(b.date).toISOString().split('T')[0] : ''; } catch(e) {}
+    setEditForm({
+      lab: b.lab?._id || '',
+      studentBatch: b.studentBatch?._id || '',
+      date: dateStr,
+      timeSlot: b.timeSlot || TIME_SLOTS[0],
+      purpose: b.purpose || '',
+    });
+    setEditModal(b);
+  };
+
+  const submitEdit = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/lecturer/bookings/${editModal._id}`, editForm);
+      addToast('Booking updated successfully', 'success');
+      setEditModal(null);
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Update failed', 'error');
+    } finally { setSaving(false); }
+  };
+
+  const confirmCancel = async () => {
+    try {
+      await api.delete(`/lecturer/bookings/${cancelId}`);
+      addToast('Booking cancelled', 'success');
+      setCancelId(null);
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Cancel failed', 'error');
+    }
+  };
+
+  const setField = (key) => (e) => setEditForm(f => ({ ...f, [key]: e.target.value }));
 
   return (
     <div className="page">
@@ -249,64 +380,120 @@ function MyBookingsPage() {
 
       {loading ? <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {filtered.length === 0 ? <EmptyState Icon={ClipboardIcon} title="No requests found" description="Submit a booking request from the Book a Lab page" /> : filtered.map(b => (
-            <Card key={b._id} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <h3 style={{ fontSize: '16px', marginBottom: '4px' }}>{b.lab?.name}</h3>
-                  <div style={{ fontSize: '13px', color: 'var(--text2)' }}>{b.lab?.location}</div>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', fontSize: '13px' }}>
-                <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
-                  <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date & Time</div>
-                  <div>{new Date(b.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                  <div style={{ color: 'var(--accent-light)' }}>{SLOT_LABELS[b.timeSlot]}</div>
-                </div>
-                <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
-                  <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student Batch</div>
-                  <div style={{ fontWeight: '500' }}>{b.studentBatch?.name}</div>
-                  <div style={{ color: 'var(--text2)', fontSize: '12px', marginTop: '2px' }}>{b.studentBatch?.academicYear} · {b.studentBatch?.focusArea}</div>
-                  {b.studentBatch?.students?.length > 0 && (
-                    <button
-                      onClick={() => setStudentModal(b.studentBatch)}
-                      style={{
-                        marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                        padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)',
-                        background: 'var(--bg2)', color: 'var(--primary, #4f6ef7)',
-                        fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-glow, rgba(79,142,247,0.12))'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'var(--bg2)'}
-                    >
-                      <UsersGroupIcon size={12} />
-                      View {b.studentBatch.students.length} Students
-                    </button>
-                  )}
-                </div>
-              </div>
-              {b.purpose && (
-                <div style={{ fontSize: '13px', color: 'var(--text2)', padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
-                  <span style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Purpose: </span>{b.purpose}
-                </div>
-              )}
-              {b.status === 'rejected' && b.rejectionReason && (
-                <div style={{ padding: '10px 12px', background: '#2d0f0f', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: '#fca5a5' }}>
-                  <strong>Rejection Reason:</strong> {b.rejectionReason}
-                </div>
-              )}
-              {b.handledBy && (
-                <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
-                  Handled by {b.handledBy.name} · {b.handledAt && new Date(b.handledAt).toLocaleDateString()}
-                </div>
-              )}
-            </Card>
+          {filtered.length === 0
+            ? <EmptyState Icon={ClipboardIcon} title="No requests found" description="Submit a booking request from the Book a Lab page" />
+            : filtered.map(b => (
+            <BookingCard
+              key={b._id}
+              b={b}
+              onEdit={openEdit}
+              onCancel={setCancelId}
+              onViewStudents={setStudentModal}
+            />
           ))}
         </div>
       )}
 
-      {/* Student List Modal */}
+      {/* ── Edit Modal ── */}
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title="Edit Booking Request">
+        {editModal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Lab */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lab</label>
+              <select
+                value={editForm.lab}
+                onChange={setField('lab')}
+                style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">Select lab</option>
+                {labs.map(l => <option key={l._id} value={l._id}>{l.name} — {l.location}</option>)}
+              </select>
+            </div>
+
+            {/* Student Batch */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student Batch</label>
+              <select
+                value={editForm.studentBatch}
+                onChange={setField('studentBatch')}
+                style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">Select batch</option>
+                {batches.map(b => <option key={b._id} value={b._id}>{b.name} ({b.academicYear} · {b.focusArea})</option>)}
+              </select>
+            </div>
+
+            {/* Date + Time Slot side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</label>
+                <input
+                  type="date"
+                  value={editForm.date}
+                  onChange={setField('date')}
+                  min={new Date().toISOString().split('T')[0]}
+                  style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', colorScheme: 'dark' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time Slot</label>
+                <select
+                  value={editForm.timeSlot}
+                  onChange={setField('timeSlot')}
+                  style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', cursor: 'pointer' }}
+                >
+                  {TIME_SLOTS.map(s => <option key={s} value={s}>{SLOT_LABELS[s]}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Purpose */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Purpose</label>
+              <textarea
+                value={editForm.purpose}
+                onChange={setField('purpose')}
+                rows={3}
+                placeholder="Describe the purpose of this lab session..."
+                style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px', borderTop: '1px solid var(--border)', marginTop: '4px' }}>
+              <button
+                onClick={() => setEditModal(null)}
+                style={{ padding: '9px 18px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitEdit}
+                disabled={saving}
+                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: saving ? '#2a5ab8' : '#4f6ef7', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Cancel Confirm Modal ── */}
+      <Modal open={!!cancelId} onClose={() => setCancelId(null)} title="Cancel Booking">
+        <p style={{ color: 'var(--text2)', marginBottom: '20px', fontSize: '14px' }}>
+          Are you sure you want to cancel this booking request? This action cannot be undone.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <Button variant="secondary" onClick={() => setCancelId(null)}>Keep It</Button>
+          <Button variant="danger" onClick={confirmCancel}>Yes, Cancel</Button>
+        </div>
+      </Modal>
+
+      {/* ── Student List Modal ── */}
       <Modal open={!!studentModal} onClose={() => setStudentModal(null)} title={studentModal ? `${studentModal.name} — Students` : ''}>
         {studentModal && (
           <div>
@@ -324,16 +511,16 @@ function MyBookingsPage() {
                 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                    background: 'var(--primary-glow, rgba(79,142,247,0.15))',
+                    background: 'rgba(79,142,247,0.15)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '12px', fontWeight: '600', color: 'var(--primary, #4f6ef7)',
+                    fontSize: '12px', fontWeight: '600', color: '#4f6ef7',
                   }}>
                     {s.name ? s.name.charAt(0).toUpperCase() : i + 1}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{s.name}</div>
-                    {s.registrationNumber && (
-                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '1px' }}>{s.registrationNumber}</div>
+                    {s.registerNumber && (
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '1px' }}>{s.registerNumber}</div>
                     )}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text3)', flexShrink: 0 }}>#{i + 1}</div>
