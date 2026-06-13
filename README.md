@@ -65,7 +65,7 @@ MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/unila
 JWT_SECRET=unilab_super_secret_jwt_key_2024
 
 # Admin bootstrap credentials
-ADMIN_EMAIL=tharakarusiru6@gmail.com
+ADMIN_EMAIL=******@gmail.com
 ADMIN_PASSWORD=12345678
 ```
 
