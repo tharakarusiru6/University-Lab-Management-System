@@ -337,6 +337,16 @@ function BatchesPage() {
     } catch (err) { addToast(err.response?.data?.message || 'Failed', 'error'); }
   };
 
+  const syncBatch = async (id) => {
+    try {
+      const { data } = await api.post(`/admin/batches/${id}/sync`);
+      addToast(data.message, 'success');
+      loadBatches();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Sync failed', 'error');
+    }
+  };
+
   const deleteBatch = async (id) => {
     if (!window.confirm('Delete this batch?')) return;
     try { await api.delete(`/admin/batches/${id}`); addToast('Batch deleted', 'info'); load(); }
@@ -364,12 +374,13 @@ function BatchesPage() {
                   {b.students.slice(0, 3).map(s => s.name).join(', ')}{b.students.length > 3 ? ` +${b.students.length - 3} more` : ''}
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-                {b.students?.length > 0 && (
-                  <Button size="sm" variant="secondary" onClick={() => setStudentModal(b)}>
-                    <UsersGroupIcon size={13} /> View Students
-                  </Button>
-                )}
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                <Button size="sm" variant="secondary" onClick={() => setStudentModal(b)}>
+                  <UsersGroupIcon size={13} /> Students ({b.students?.length || 0})
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => syncBatch(b._id)} title="Scan and add new matching students">
+                  <RefreshIcon size={13} /> Sync
+                </Button>
                 <Button size="sm" variant="danger" onClick={() => deleteBatch(b._id)}>Delete</Button>
               </div>
             </Card>
@@ -445,38 +456,98 @@ function BatchesPage() {
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────
 function SettingsPage() {
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
 
   const save = async () => {
+    if (!form.currentPassword || !form.newPassword) { addToast('Please fill all fields', 'error'); return; }
     if (form.newPassword !== form.confirmPassword) { addToast('Passwords do not match', 'error'); return; }
+    if (form.newPassword.length < 6) { addToast('New password must be at least 6 characters', 'error'); return; }
     setLoading(true);
     try {
       await api.patch('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
       addToast('Password changed successfully', 'success');
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) { addToast(err.response?.data?.message || 'Failed', 'error'); }
+    } catch (err) { addToast(err.response?.data?.message || 'Failed to change password', 'error'); }
     finally { setLoading(false); }
   };
 
   return (
     <div className="page">
-      <PageHeader title="Settings" subtitle="Manage your admin account" />
-      <div style={{ maxWidth: 480 }}>
-        <Card>
-          <h3 style={{ marginBottom: '20px', fontSize: '16px' }}>Change Password</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ padding: '12px 16px', background: 'var(--bg3)', borderRadius: '8px', fontSize: '13px', color: 'var(--text2)' }}>
-              Logged in as: <strong style={{ color: 'var(--text)' }}>{user?.email}</strong>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '1.7rem', fontFamily: 'Syne, sans-serif', fontWeight: '700', color: 'var(--text)' }}>Account Settings</h1>
+        <p style={{ color: 'var(--text3)', marginTop: '4px', fontSize: '14px' }}>Manage your admin profile and security</p>
+      </div>
+      <div style={{ maxWidth: 500, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+        {/* Profile card */}
+        <div style={{ background: 'var(--surface, var(--bg2))', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--text)' }}>Profile</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              background: 'rgba(79,142,247,0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '20px', fontWeight: '700', color: '#4f6ef7', fontFamily: 'Syne, sans-serif'
+            }}>
+              {user?.name?.charAt(0).toUpperCase()}
             </div>
-            <Input label="Current Password" type="password" value={form.currentPassword} onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))} />
-            <Input label="New Password" type="password" value={form.newPassword} onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))} />
-            <Input label="Confirm New Password" type="password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} />
-            <Button onClick={save} loading={loading}>Update Password</Button>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text)' }}>{user?.name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{user?.email}</div>
+            </div>
           </div>
-        </Card>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Role</div>
+              <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>System Admin</div>
+            </div>
+            <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Access Level</div>
+              <div style={{ fontSize: '13px', color: '#4f6ef7', fontWeight: '600' }}>Full Access</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Change password card */}
+        <div style={{ background: 'var(--surface, var(--bg2))', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--text)' }}>Change Password</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[
+              { key: 'currentPassword', label: 'Current Password',     placeholder: 'Enter current password' },
+              { key: 'newPassword',     label: 'New Password',         placeholder: 'Enter new password (min 6 chars)' },
+              { key: 'confirmPassword', label: 'Confirm New Password', placeholder: 'Re-enter new password' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+                <input
+                  type="password"
+                  placeholder={placeholder}
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', fontFamily: 'inherit' }}
+                  onFocus={e => e.target.style.borderColor = '#4f6ef7'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
+            ))}
+            <button
+              onClick={save}
+              disabled={loading}
+              style={{
+                marginTop: '6px', padding: '11px', borderRadius: '8px', border: 'none',
+                background: loading ? '#2a5ab8' : '#4f6ef7', color: '#fff',
+                fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1, transition: 'all 0.15s',
+              }}
+            >
+              {loading ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );

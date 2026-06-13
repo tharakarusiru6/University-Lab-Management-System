@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import api from '../utils/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import { Card, Badge, Spinner, EmptyState } from '../components/common/UI.jsx';
-import { CalendarIcon, ClockIcon, MapPinIcon, FlaskIcon, BookOpenIcon, UsersGroupIcon } from '../components/common/Icons.jsx';
+import { CalendarIcon, ClockIcon, MapPinIcon, FlaskIcon, BookOpenIcon, UsersGroupIcon , SettingsIcon } from '../components/common/Icons.jsx';
 
 const SLOT_LABELS = { '08:00-10:00': '8:00 AM – 10:00 AM', '10:00-12:00': '10:00 AM – 12:00 PM', '12:00-14:00': '12:00 PM – 2:00 PM', '14:00-16:00': '2:00 PM – 4:00 PM' };
 
@@ -180,12 +181,127 @@ function SessionCard({ session: s, upcoming }) {
   );
 }
 
+
+function SettingsPage() {
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    if (!form.currentPassword || !form.newPassword) { addToast('Please fill all fields', 'error'); return; }
+    if (form.newPassword !== form.confirmPassword) { addToast('Passwords do not match', 'error'); return; }
+    if (form.newPassword.length < 6) { addToast('New password must be at least 6 characters', 'error'); return; }
+    setLoading(true);
+    try {
+      await api.patch('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
+      addToast('Password changed successfully', 'success');
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) { addToast(err.response?.data?.message || 'Failed to change password', 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const roleLabel = { lecturer: 'Lecturer', lab_assistant: 'Lab Assistant', student: 'Student', admin: 'Admin' };
+
+  return (
+    <div className="page">
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '1.7rem', fontFamily: 'Syne, sans-serif', fontWeight: '700', color: 'var(--text)' }}>Account Settings</h1>
+        <p style={{ color: 'var(--text3)', marginTop: '4px', fontSize: '14px' }}>Manage your profile and security</p>
+      </div>
+      <div style={{ maxWidth: 500, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+        {/* Profile info card */}
+        <div style={{ background: 'var(--surface, var(--bg2))', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--text)' }}>Profile</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              background: 'rgba(79,142,247,0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '20px', fontWeight: '700', color: '#4f6ef7', fontFamily: 'Syne, sans-serif'
+            }}>
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text)' }}>{user?.name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{user?.email}</div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Role</div>
+              <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{roleLabel[user?.role] || user?.role}</div>
+            </div>
+            {user?.academicYear && (
+              <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Academic Year</div>
+                <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{user.academicYear}</div>
+              </div>
+            )}
+            {user?.focusArea && (
+              <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Focus Area</div>
+                <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{user.focusArea}</div>
+              </div>
+            )}
+            {user?.registerNumber && (
+              <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Reg. Number</div>
+                <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{user.registerNumber}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Change password card */}
+        <div style={{ background: 'var(--surface, var(--bg2))', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--text)' }}>Change Password</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[
+              { key: 'currentPassword', label: 'Current Password', placeholder: 'Enter current password' },
+              { key: 'newPassword',     label: 'New Password',     placeholder: 'Enter new password (min 6 chars)' },
+              { key: 'confirmPassword', label: 'Confirm New Password', placeholder: 'Re-enter new password' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+                <input
+                  type="password"
+                  placeholder={placeholder}
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '14px', padding: '10px 12px', width: '100%', outline: 'none', fontFamily: 'inherit' }}
+                  onFocus={e => e.target.style.borderColor = '#4f6ef7'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
+            ))}
+            <button
+              onClick={save}
+              disabled={loading}
+              style={{
+                marginTop: '6px', padding: '11px', borderRadius: '8px', border: 'none',
+                background: loading ? '#2a5ab8' : '#4f6ef7', color: '#fff',
+                fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1, transition: 'all 0.15s',
+              }}
+            >
+              {loading ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
 export default function StudentApp() {
   return (
     <div style={{ padding: '32px' }}>
       <Routes>
         <Route index element={<StudentDashboard />} />
         <Route path="sessions" element={<SessionsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </div>
   );

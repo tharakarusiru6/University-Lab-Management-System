@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext.jsx';
 import {
   DashboardIcon, UsersIcon, FlaskIcon, GraduationIcon, SettingsIcon,
   CalendarPlusIcon, CalendarIcon, ClipboardIcon, InboxIcon,
   LogOutIcon, ChevronLeftIcon, ChevronRightIcon
-} from './Icons';
+} from './Icons.jsx';
 
 const navItems = {
   admin: [
@@ -19,15 +19,18 @@ const navItems = {
     { to: '/lecturer',          label: 'Dashboard',   Icon: DashboardIcon,    end: true },
     { to: '/lecturer/book',     label: 'Book a Lab',  Icon: CalendarPlusIcon },
     { to: '/lecturer/bookings', label: 'My Requests', Icon: ClipboardIcon },
+    { to: '/lecturer/settings', label: 'Settings',    Icon: SettingsIcon },
   ],
   lab_assistant: [
     { to: '/assistant',          label: 'Dashboard',    Icon: DashboardIcon, end: true },
     { to: '/assistant/requests', label: 'Lab Requests', Icon: InboxIcon },
     { to: '/assistant/my-labs',  label: 'My Labs',      Icon: FlaskIcon },
+    { to: '/assistant/settings', label: 'Settings',     Icon: SettingsIcon },
   ],
   student: [
-    { to: '/student',          label: 'Dashboard',   Icon: DashboardIcon, end: true },
+    { to: '/student',          label: 'Dashboard',    Icon: DashboardIcon, end: true },
     { to: '/student/sessions', label: 'Lab Sessions', Icon: CalendarIcon },
+    { to: '/student/settings', label: 'Settings',     Icon: SettingsIcon },
   ],
 };
 
