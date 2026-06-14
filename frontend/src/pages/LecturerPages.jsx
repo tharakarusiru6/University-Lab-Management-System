@@ -22,6 +22,52 @@ function PageHeader({ title, subtitle, action }) {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────
+function LecturerSessionsSection({ sessions }) {
+  const [view, setView] = useState('list');
+  return (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Upcoming Approved Sessions</h3>
+        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+          {['list','grid'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '5px 14px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500', background: view === v ? '#4f6ef7' : 'var(--bg3)', color: view === v ? '#fff' : 'var(--text2)' }}>
+              {v === 'list' ? 'List' : 'Grid'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {sessions.length === 0 ? <EmptyState Icon={CalendarIcon} title="No upcoming sessions" description="Book a lab to get started" /> : (
+        view === 'list' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {sessions.map(b => (
+              <div key={b._id} style={{ padding: '14px 16px', background: 'var(--bg3)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <div style={{ fontWeight: '500', marginBottom: '2px' }}>{b.lab?.name}</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text2)' }}>{new Date(b.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })} · {SLOT_LABELS[b.timeSlot]}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{b.studentBatch?.name}</div>
+                </div>
+                <StatusBadge status={b.status} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+            {sessions.map(b => (
+              <div key={b._id} style={{ padding: '14px', background: 'var(--bg3)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{b.lab?.name}</div>
+                <div style={{ fontSize: '11px', color: '#4f6ef7', fontWeight: '500' }}>{new Date(b.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text2)' }}>{SLOT_LABELS[b.timeSlot]}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.studentBatch?.name}</div>
+                <StatusBadge status={b.status} />
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
 function LecturerDashboard() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,25 +108,7 @@ function LecturerDashboard() {
         ))}
       </div>
 
-      <Card>
-        <h3 style={{ marginBottom: '20px', fontSize: '16px' }}>Upcoming Approved Sessions</h3>
-        {upcoming.length === 0 ? <EmptyState Icon={CalendarIcon} title="No upcoming sessions" description="Book a lab to get started" /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {upcoming.map(b => (
-              <div key={b._id} style={{ padding: '14px 16px', background: 'var(--bg3)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <div style={{ fontWeight: '500', marginBottom: '2px' }}>{b.lab?.name}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                    {new Date(b.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })} · {SLOT_LABELS[b.timeSlot]}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{b.studentBatch?.name}</div>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <LecturerSessionsSection sessions={upcoming} />
     </div>
   );
 }

@@ -17,6 +17,57 @@ function PageHeader({ title, subtitle }) {
   );
 }
 
+function StudentSessionsSection({ sessions }) {
+  const [view, setView] = useState('list');
+  return (
+    <Card style={{ marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Upcoming Lab Sessions</h3>
+        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+          {['list','grid'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '5px 14px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500', background: view === v ? '#4f6ef7' : 'var(--bg3)', color: view === v ? '#fff' : 'var(--text2)' }}>
+              {v === 'list' ? 'List' : 'Grid'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {sessions.length === 0 ? <EmptyState Icon={CalendarIcon} title="No upcoming sessions" description="Your lecturer hasn't scheduled any lab sessions yet." /> : (
+        view === 'list' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {sessions.map(s => (
+              <div key={s._id} style={{ padding: '16px', background: 'var(--bg3)', borderRadius: '12px', borderLeft: '3px solid #3dd68c' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>{s.lab?.name}</h4>
+                  <Badge color="neutral">{s.lab?.location}</Badge>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', fontSize: '13px' }}>
+                  <div><div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Date</div><div style={{ fontWeight: '500' }}>{new Date(s.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div></div>
+                  <div><div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Time</div><div style={{ color: '#3dd68c', fontWeight: '500' }}>{SLOT_LABELS[s.timeSlot]}</div></div>
+                  <div><div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Lecturer</div><div>{s.lecturer?.name}</div></div>
+                </div>
+                {s.purpose && <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text2)' }}><em>{s.purpose}</em></div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+            {sessions.map(s => (
+              <div key={s._id} style={{ padding: '14px', background: 'var(--bg3)', borderRadius: '10px', border: '1px solid #3dd68c44', borderTop: '3px solid #3dd68c', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{s.lab?.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{s.lab?.location}</div>
+                <div style={{ fontSize: '11px', color: '#4f6ef7', fontWeight: '500' }}>{new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                <div style={{ fontSize: '11px', color: '#3dd68c', fontWeight: '500' }}>{SLOT_LABELS[s.timeSlot]}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text2)' }}>{s.lecturer?.name}</div>
+                {s.purpose && <div style={{ fontSize: '11px', color: 'var(--text3)', fontStyle: 'italic' }}>{s.purpose}</div>}
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
 function StudentDashboard() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
@@ -73,36 +124,7 @@ function StudentDashboard() {
       )}
 
       {/* Upcoming sessions */}
-      <Card style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '15px', marginBottom: '16px' }}>Upcoming Lab Sessions</h3>
-        {upcoming.length === 0 ? <EmptyState Icon={CalendarIcon} title="No upcoming sessions" description="Your lecturer hasn't scheduled any lab sessions yet." /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {upcoming.map(s => (
-              <div key={s._id} style={{ padding: '16px', background: 'var(--bg3)', borderRadius: '12px', borderLeft: '3px solid var(--success)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-                  <h4 style={{ fontSize: '15px' }}>{s.lab?.name}</h4>
-                  <Badge color="neutral">{s.lab?.location}</Badge>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px', fontSize: '13px' }}>
-                  <div>
-                    <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Date</div>
-                    <div style={{ fontWeight: '500' }}>{new Date(s.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Time</div>
-                    <div style={{ color: 'var(--success)', fontWeight: '500' }}>{SLOT_LABELS[s.timeSlot]}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px' }}>Lecturer</div>
-                    <div>{s.lecturer?.name}</div>
-                  </div>
-                </div>
-                {s.purpose && <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text2)' }}><em>{s.purpose}</em></div>}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <StudentSessionsSection sessions={upcoming} />
     </div>
   );
 }

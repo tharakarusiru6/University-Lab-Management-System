@@ -36,6 +36,53 @@ function PageHeader({ title, subtitle, action }) {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────
+function AdminBookingSection({ bookings }) {
+  const [view, setView] = useState('list');
+  return (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Recent Booking Requests</h3>
+        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+          {['list','grid'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '5px 14px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500', background: view === v ? '#4f6ef7' : 'var(--bg3)', color: view === v ? '#fff' : 'var(--text2)' }}>
+              {v === 'list' ? 'List' : 'Grid'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {bookings.length === 0 ? <EmptyState Icon={ClipboardIcon} title="No bookings yet" description="Booking requests from lecturers will appear here" /> : (
+        view === 'list' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {bookings.map(b => (
+              <div key={b._id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg3)', borderRadius: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{b.lab?.name || 'Unknown Lab'}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>{b.lecturer?.name} · {b.studentBatch?.name} · {b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+                </div>
+                <StatusBadge status={b.status} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+            {bookings.map(b => (
+              <div key={b._id} style={{ padding: '14px', background: 'var(--bg3)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{b.lab?.name || 'Unknown Lab'}</div>
+                  <StatusBadge status={b.status} />
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text2)' }}>{b.studentBatch?.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.lecturer?.name}</div>
+                <div style={{ fontSize: '11px', color: '#4f6ef7', fontWeight: '500' }}>{b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
 function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,26 +117,7 @@ function AdminDashboard() {
       </div>
 
       {/* Recent bookings */}
-      <Card>
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Recent Booking Requests</h3>
-        {stats?.recentBookings?.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {stats.recentBookings.map(b => (
-              <div key={b._id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg3)', borderRadius: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{b.lab?.name || 'Unknown Lab'}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                    {b.lecturer?.name} · {b.studentBatch?.name} · {b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                  </div>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState Icon={ClipboardIcon} title="No bookings yet" description="Booking requests from lecturers will appear here" />
-        )}
-      </Card>
+      <AdminBookingSection bookings={stats?.recentBookings ?? []} />
     </div>
   );
 }

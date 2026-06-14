@@ -21,6 +21,53 @@ function PageHeader({ title, subtitle, action }) {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────
+function AssistantRequestsSection({ bookings }) {
+  const [view, setView] = useState('list');
+  return (
+    <Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Recent Requests</h3>
+        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+          {['list','grid'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '5px 14px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500', background: view === v ? '#4f6ef7' : 'var(--bg3)', color: view === v ? '#fff' : 'var(--text2)' }}>
+              {v === 'list' ? 'List' : 'Grid'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {bookings.length === 0 ? <EmptyState Icon={ClipboardIcon} title="No requests yet" /> : (
+        view === 'list' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {bookings.map(b => (
+              <div key={b._id} style={{ padding: '12px 16px', background: 'var(--bg3)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: '500', fontSize: '13px', color: 'var(--text)' }}>{b.lab?.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>{b.lecturer?.name} · {b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+                </div>
+                <StatusBadge status={b.status} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+            {bookings.map(b => (
+              <div key={b._id} style={{ padding: '14px', background: 'var(--bg3)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{b.lab?.name}</div>
+                  <StatusBadge status={b.status} />
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text2)' }}>{b.lecturer?.name}</div>
+                <div style={{ fontSize: '11px', color: '#4f6ef7', fontWeight: '500' }}>{b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+                {b.studentBatch?.name && <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.studentBatch.name}</div>}
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
 function AssistantDashboard() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,22 +107,7 @@ function AssistantDashboard() {
         </div>
       )}
 
-      <Card>
-        <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>Recent Requests</h3>
-        {bookings.length === 0 ? <EmptyState Icon={ClipboardIcon} title="No requests yet" /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {bookings.slice(0, 5).map(b => (
-              <div key={b._id} style={{ padding: '12px 16px', background: 'var(--bg3)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: '500', fontSize: '14px' }}>{b.lab?.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{b.lecturer?.name} · {new Date(b.date).toLocaleDateString()}</div>
-                </div>
-                <StatusBadge status={b.status} />
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <AssistantRequestsSection bookings={bookings.slice(0, 6)} />
     </div>
   );
 }
