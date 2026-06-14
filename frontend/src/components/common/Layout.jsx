@@ -13,6 +13,7 @@ const navItems = {
     { to: '/admin/users',    label: 'Users',           Icon: UsersIcon },
     { to: '/admin/labs',     label: 'Labs',            Icon: FlaskIcon },
     { to: '/admin/batches',  label: 'Student Batches', Icon: GraduationIcon },
+    { to: '/admin/schedule', label: 'Schedule',        Icon: CalendarIcon },
     { to: '/admin/settings', label: 'Settings',        Icon: SettingsIcon },
   ],
   lecturer: [
@@ -25,6 +26,7 @@ const navItems = {
     { to: '/assistant',          label: 'Dashboard',    Icon: DashboardIcon, end: true },
     { to: '/assistant/requests', label: 'Lab Requests', Icon: InboxIcon },
     { to: '/assistant/my-labs',  label: 'My Labs',      Icon: FlaskIcon },
+    { to: '/assistant/schedule', label: 'Schedule',     Icon: CalendarIcon },
     { to: '/assistant/settings', label: 'Settings',     Icon: SettingsIcon },
   ],
   student: [

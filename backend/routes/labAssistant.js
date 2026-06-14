@@ -68,4 +68,30 @@ router.patch('/bookings/:id', ...assistantAccess, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
+
+// GET /api/assistant/schedule?date=2024-01-15
+router.get('/schedule', ...assistantAccess, async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date ? new Date(date) : new Date();
+    const start = new Date(targetDate); start.setHours(0,0,0,0);
+    const end   = new Date(targetDate); end.setHours(23,59,59,999);
+
+    // Only show labs assigned to this assistant
+    const myLabs = await Lab.find({ assignedAssistants: req.user._id });
+    const labIds = myLabs.map(l => l._id);
+
+    const bookings = await Booking.find({
+      lab: { $in: labIds },
+      date: { $gte: start, $lte: end }
+    })
+      .populate('lab', 'name location capacity')
+      .populate('lecturer', 'name email')
+      .populate('studentBatch', 'name academicYear focusArea')
+      .sort({ timeSlot: 1 });
+
+    res.json({ bookings, labs: myLabs });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 module.exports = router;

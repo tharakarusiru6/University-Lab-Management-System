@@ -4,7 +4,7 @@ import api from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Button, Card, Badge, Modal, Input, Select, Spinner, EmptyState, StatusBadge } from '../components/common/UI.jsx';
-import { UsersIcon, AlertCircleIcon, FlaskIcon, GraduationIcon, ClipboardIcon, UserCheckIcon, UserXIcon, PlusIcon, EditIcon, TrashIcon, MapPinIcon, UsersGroupIcon, KeyIcon, RefreshIcon } from '../components/common/Icons.jsx';
+import { UsersIcon, AlertCircleIcon, FlaskIcon, GraduationIcon, ClipboardIcon, UserCheckIcon, UserXIcon, PlusIcon, EditIcon, TrashIcon, MapPinIcon, UsersGroupIcon, KeyIcon, RefreshIcon, ChevronLeftIcon, ChevronRightIcon, CalendarIcon, CheckCircleIcon } from '../components/common/Icons.jsx';
 
 const ACADEMIC_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const FOCUS_AREAS = ['Computer Science', 'Information Technology', 'Software Engineering', 'Cybersecurity', 'Data Science', 'Network Engineering', 'Artificial Intelligence'];
@@ -40,37 +40,55 @@ function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     api.get('/admin/stats').then(r => setStats(r.data)).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Spinner size={36} /></div>;
 
   return (
     <div className="page">
-      <PageHeader title="Dashboard" subtitle="Overview of the UniLab system" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-        <StatCard Icon={UsersIcon} label="Total Users" value={stats?.totalUsers ?? 0} color="#4f6ef7" />
-        <StatCard Icon={AlertCircleIcon} label="Pending Approvals" value={stats?.pendingApprovals ?? 0} color="#f59e0b" sub={stats?.pendingApprovals > 0 ? <Link to="/admin/users?tab=pending">Review →</Link> : null} />
-        <StatCard Icon={FlaskIcon} label="Active Labs" value={stats?.totalLabs ?? 0} color="#10b981" />
-        <StatCard Icon={GraduationIcon} label="Student Batches" value={stats?.totalBatches ?? 0} color="#7c3aed" />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.7rem', fontFamily: 'Syne, sans-serif', fontWeight: '700', color: 'var(--text)' }}>Dashboard</h1>
+          <p style={{ color: 'var(--text3)', marginTop: '4px', fontSize: '14px' }}>Overview of the UniLab system</p>
+        </div>
+        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', fontSize: '13px', cursor: 'pointer' }}>
+          <RefreshIcon size={14} /> Refresh
+        </button>
       </div>
 
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+        <StatCard Icon={UsersIcon}       label="Total Users"       value={stats?.totalUsers ?? 0}      color="#4f6ef7" sub={`${stats?.totalStudents ?? 0} students`} />
+        <StatCard Icon={UserCheckIcon}   label="Pending Approvals" value={stats?.pendingApprovals ?? 0} color="#f59e0b" sub={stats?.pendingApprovals > 0 ? 'Needs attention' : 'All clear'} />
+        <StatCard Icon={FlaskIcon}       label="Active Labs"       value={stats?.totalLabs ?? 0}       color="#10b981" sub={`${stats?.totalAssistants ?? 0} assistants`} />
+        <StatCard Icon={GraduationIcon}  label="Student Batches"   value={stats?.totalBatches ?? 0}    color="#7c3aed" />
+      </div>
+
+      {/* Recent bookings */}
       <Card>
-        <h3 style={{ marginBottom: '20px', fontSize: '16px' }}>Recent Booking Requests</h3>
+        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Recent Booking Requests</h3>
         {stats?.recentBookings?.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {stats.recentBookings.map(b => (
-              <div key={b._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg3)', borderRadius: '10px' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: '500' }}>{b.lab?.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>by {b.lecturer?.name} · {new Date(b.date).toLocaleDateString()}</div>
+              <div key={b._id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg3)', borderRadius: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{b.lab?.name || 'Unknown Lab'}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                    {b.lecturer?.name} · {b.studentBatch?.name} · {b.date ? new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                  </div>
                 </div>
                 <StatusBadge status={b.status} />
               </div>
             ))}
           </div>
-        ) : <EmptyState Icon={ClipboardIcon} title="No bookings yet" />}
+        ) : (
+          <EmptyState Icon={ClipboardIcon} title="No bookings yet" description="Booking requests from lecturers will appear here" />
+        )}
       </Card>
     </div>
   );
@@ -553,6 +571,187 @@ function SettingsPage() {
   );
 }
 
+
+const TIME_SLOTS_SCHEDULE = ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00'];
+const SLOT_LABELS_SCHEDULE = {
+  '08:00-10:00': '8:00 – 10:00 AM',
+  '10:00-12:00': '10:00 AM – 12:00 PM',
+  '12:00-14:00': '12:00 – 2:00 PM',
+  '14:00-16:00': '2:00 – 4:00 PM',
+};
+const STATUS_COLORS = {
+  approved: { bg: 'rgba(61,214,140,0.12)', border: 'rgba(61,214,140,0.35)', text: '#3dd68c', dot: '#3dd68c' },
+  pending:  { bg: 'rgba(245,166,35,0.12)', border: 'rgba(245,166,35,0.35)',  text: '#f5a623', dot: '#f5a623' },
+  rejected: { bg: 'rgba(247,90,90,0.08)',  border: 'rgba(247,90,90,0.25)',   text: '#f75a5a', dot: '#f75a5a' },
+};
+
+function SchedulePage({ apiPrefix }) {
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState({ bookings: [], labs: [] });
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('grid');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api.get(`/${apiPrefix}/schedule?date=${date}`)
+      .then(r => setData(r.data))
+      .catch(() => setData({ bookings: [], labs: [] }))
+      .finally(() => setLoading(false));
+  }, [date, apiPrefix]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const prevDay = () => { const d = new Date(date); d.setDate(d.getDate() - 1); setDate(d.toISOString().split('T')[0]); };
+  const nextDay = () => { const d = new Date(date); d.setDate(d.getDate() + 1); setDate(d.toISOString().split('T')[0]); };
+  const today   = () => setDate(new Date().toISOString().split('T')[0]);
+  const isToday = date === new Date().toISOString().split('T')[0];
+
+  const grid = {};
+  data.labs.forEach(lab => { grid[lab._id] = {}; });
+  data.bookings.forEach(b => {
+    if (b.lab?._id) { grid[b.lab._id] = grid[b.lab._id] || {}; grid[b.lab._id][b.timeSlot] = b; }
+  });
+
+  const totalSlots  = data.labs.length * TIME_SLOTS_SCHEDULE.length;
+  const bookedSlots = data.bookings.filter(b => b.status !== 'rejected').length;
+  const freeSlots   = totalSlots - bookedSlots;
+  const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  return (
+    <div className="page">
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.7rem', fontFamily: 'Syne, sans-serif', fontWeight: '700', color: 'var(--text)' }}>Lab Schedule</h1>
+        <p style={{ color: 'var(--text3)', marginTop: '4px', fontSize: '14px' }}>View lab availability and bookings by day</p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={prevDay} style={{ width: 34, height: 34, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeftIcon size={16} />
+          </button>
+          <div style={{ textAlign: 'center', minWidth: 220 }}>
+            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)', fontFamily: 'Syne, sans-serif' }}>{displayDate}</div>
+            {isToday && <div style={{ fontSize: '11px', color: '#4f6ef7', fontWeight: '500', marginTop: '1px' }}>Today</div>}
+          </div>
+          <button onClick={nextDay} style={{ width: 34, height: 34, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRightIcon size={16} />
+          </button>
+          {!isToday && <button onClick={today} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', cursor: 'pointer', fontSize: '12px', fontWeight: '500' }}>Today</button>}
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '13px', outline: 'none', colorScheme: 'dark' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '6px', fontSize: '12px' }}>
+            <span style={{ padding: '4px 10px', borderRadius: '20px', background: 'rgba(61,214,140,0.12)', color: '#3dd68c', border: '1px solid rgba(61,214,140,0.3)' }}>{freeSlots} Free</span>
+            <span style={{ padding: '4px 10px', borderRadius: '20px', background: 'rgba(79,142,247,0.12)', color: '#4f6ef7', border: '1px solid rgba(79,142,247,0.3)' }}>{bookedSlots} Booked</span>
+          </div>
+          <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+            {['grid','list'].map(v => (
+              <button key={v} onClick={() => setView(v)} style={{ padding: '6px 14px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500', background: view === v ? '#4f6ef7' : 'var(--bg3)', color: view === v ? '#fff' : 'var(--text2)' }}>{v === 'grid' ? 'Grid' : 'List'}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Spinner /></div>
+      ) : data.labs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text3)', background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text2)', marginBottom: '4px' }}>No labs found</div>
+          <div style={{ fontSize: '13px' }}>No labs are assigned yet</div>
+        </div>
+      ) : view === 'grid' ? (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px', minWidth: 700 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: 'var(--text3)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--bg2)', borderRadius: '8px', minWidth: 150 }}>Lab</th>
+                {TIME_SLOTS_SCHEDULE.map(slot => (
+                  <th key={slot} style={{ padding: '10px 8px', textAlign: 'center', fontSize: '11px', color: 'var(--text3)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', background: 'var(--bg2)', borderRadius: '8px', minWidth: 155 }}>{SLOT_LABELS_SCHEDULE[slot]}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.labs.map(lab => (
+                <tr key={lab._id}>
+                  <td style={{ padding: '10px 14px', background: 'var(--bg2)', borderRadius: '8px', verticalAlign: 'middle' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{lab.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>{lab.location}</div>
+                    {lab.capacity && <div style={{ fontSize: '10px', color: 'var(--text3)', marginTop: '1px' }}>Cap: {lab.capacity}</div>}
+                  </td>
+                  {TIME_SLOTS_SCHEDULE.map(slot => {
+                    const booking = grid[lab._id]?.[slot];
+                    const sc = booking ? STATUS_COLORS[booking.status] : null;
+                    return (
+                      <td key={slot} style={{ padding: '4px', verticalAlign: 'top' }}>
+                        {booking ? (
+                          <div style={{ background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: '8px', padding: '8px 10px', minHeight: 84 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot, flexShrink: 0 }} />
+                              <span style={{ fontSize: '10px', fontWeight: '600', color: sc.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{booking.status}</span>
+                            </div>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', lineHeight: 1.3 }}>{booking.studentBatch?.name || 'N/A'}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '3px' }}>{booking.lecturer?.name}</div>
+                            {booking.purpose && <div style={{ fontSize: '10px', color: 'var(--text3)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.purpose}</div>}
+                          </div>
+                        ) : (
+                          <div style={{ background: 'rgba(61,214,140,0.04)', border: '1px dashed rgba(61,214,140,0.2)', borderRadius: '8px', minHeight: 84, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '11px', color: 'rgba(61,214,140,0.45)', fontWeight: '500' }}>Free</span>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {data.bookings.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text3)', background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '15px', color: 'var(--text2)', fontWeight: '500', marginBottom: '4px' }}>No bookings on this day</div>
+              <div style={{ fontSize: '13px' }}>All lab slots are free</div>
+            </div>
+          ) : data.bookings.map(b => {
+            const sc = STATUS_COLORS[b.status] || STATUS_COLORS.pending;
+            return (
+              <div key={b._id} style={{ background: 'var(--bg2)', border: `1px solid ${sc.border}`, borderLeft: `3px solid ${sc.dot}`, borderRadius: '10px', padding: '14px 16px', display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 130, flexShrink: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: sc.text }}>{SLOT_LABELS_SCHEDULE[b.timeSlot]}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text3)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{b.status}</div>
+                </div>
+                <div style={{ minWidth: 130, flexShrink: 0 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Lab</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{b.lab?.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.lab?.location}</div>
+                </div>
+                <div style={{ minWidth: 130, flexShrink: 0 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Batch</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>{b.studentBatch?.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.studentBatch?.academicYear} · {b.studentBatch?.focusArea}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Lecturer</div>
+                  <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)' }}>{b.lecturer?.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{b.lecturer?.email}</div>
+                </div>
+                {b.purpose && (
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Purpose</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text2)' }}>{b.purpose}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminApp() {
   return (
     <div style={{ padding: '32px' }}>
@@ -562,6 +761,7 @@ export default function AdminApp() {
         <Route path="labs" element={<LabsPage />} />
         <Route path="batches" element={<BatchesPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="schedule" element={<SchedulePage apiPrefix="admin" />} />
       </Routes>
     </div>
   );
