@@ -9,13 +9,14 @@ import {
 
 const navItems = {
   admin: [
-    { to: '/admin',           label: 'Dashboard',      Icon: DashboardIcon,    end: true },
-    { to: '/admin/users',     label: 'Users',           Icon: UsersIcon },
-    { to: '/admin/labs',      label: 'Labs',            Icon: FlaskIcon },
-    { to: '/admin/batches',   label: 'Student Batches', Icon: GraduationIcon },
-    { to: '/admin/semesters', label: 'Semesters',       Icon: CalendarIcon },
-    { to: '/admin/schedule',  label: 'Schedule',        Icon: ClipboardIcon },
-    { to: '/admin/settings',  label: 'Settings',        Icon: SettingsIcon },
+    { to: '/admin',            label: 'Dashboard',      Icon: DashboardIcon,   end: true },
+    { to: '/admin/users',      label: 'Users',           Icon: UsersIcon },
+    { to: '/admin/labs',       label: 'Labs',            Icon: FlaskIcon },
+    { to: '/admin/batches',    label: 'Student Batches', Icon: GraduationIcon },
+    { to: '/admin/semesters',  label: 'Semesters',       Icon: CalendarIcon },
+    { to: '/admin/assign-lab', label: 'Assign Lab',      Icon: CalendarPlusIcon },
+    { to: '/admin/schedule',   label: 'Schedule',        Icon: ClipboardIcon },
+    { to: '/admin/settings',   label: 'Settings',        Icon: SettingsIcon },
   ],
   lecturer: [
     { to: '/lecturer',                  label: 'Dashboard',       Icon: DashboardIcon,    end: true },
@@ -25,12 +26,13 @@ const navItems = {
     { to: '/lecturer/settings',         label: 'Settings',        Icon: SettingsIcon },
   ],
   lab_assistant: [
-    { to: '/assistant',           label: 'Dashboard',         Icon: DashboardIcon, end: true },
-    { to: '/assistant/requests',  label: 'Lab Requests',      Icon: InboxIcon },
-    { to: '/assistant/recurring', label: 'Recurring Requests',Icon: CalendarIcon },
-    { to: '/assistant/my-labs',   label: 'My Labs',           Icon: FlaskIcon },
-    { to: '/assistant/schedule',  label: 'Schedule',          Icon: ClipboardIcon },
-    { to: '/assistant/settings',  label: 'Settings',          Icon: SettingsIcon },
+    { to: '/assistant',            label: 'Dashboard',          Icon: DashboardIcon, end: true },
+    { to: '/assistant/requests',   label: 'Lab Requests',       Icon: InboxIcon },
+    { to: '/assistant/recurring',  label: 'Recurring Requests', Icon: CalendarIcon },
+    { to: '/assistant/assign-lab', label: 'Assign Lab',         Icon: CalendarPlusIcon },
+    { to: '/assistant/my-labs',    label: 'My Labs',            Icon: FlaskIcon },
+    { to: '/assistant/schedule',   label: 'Schedule',           Icon: ClipboardIcon },
+    { to: '/assistant/settings',   label: 'Settings',           Icon: SettingsIcon },
   ],
   student: [
     { to: '/student',          label: 'Dashboard',    Icon: DashboardIcon, end: true },

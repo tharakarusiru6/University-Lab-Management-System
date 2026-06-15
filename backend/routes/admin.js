@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
 const Lab = require('../models/Lab');
@@ -247,4 +248,98 @@ router.get('/schedule', ...adminOnly, async (req, res) => {
 
     res.json({ bookings, labs });
   } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// ── DIRECT LAB ASSIGNMENT (Admin) ─────────────────────────────────────────────
+// Admin assigns a lab directly — booking created as approved immediately
+
+// Single session
+router.post('/assign-lab', ...adminOnly, async (req, res) => {
+  try {
+    const { lab, lecturer, studentBatch, date, timeSlot, purpose } = req.body;
+    if (!lab || !lecturer || !studentBatch || !date || !timeSlot)
+      return res.status(400).json({ message: 'Lab, lecturer, batch, date and time slot are required' });
+
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const dEnd = new Date(date); dEnd.setHours(23,59,59,999);
+    const conflict = await mongoose.model('Booking').findOne({
+      lab, timeSlot, status: { $ne: 'rejected' },
+      date: { $gte: d, $lte: dEnd },
+    });
+    if (conflict) return res.status(400).json({ message: 'That time slot is already booked for this lab on that date' });
+
+    const booking = await Booking.create({
+      lab, lecturer, studentBatch,
+      date: new Date(date), timeSlot,
+      purpose: purpose || '',
+      status: 'approved',
+      handledBy: req.user._id,
+      handledAt: new Date(),
+    });
+
+    await booking.populate([
+      { path: 'lab', select: 'name location' },
+      { path: 'lecturer', select: 'name email' },
+      { path: 'studentBatch', select: 'name focusArea' },
+    ]);
+    res.status(201).json({ message: 'Lab session assigned successfully', booking });
+  } catch (err) {
+    console.error('POST /admin/assign-lab:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Semester / recurring assignment
+router.post('/assign-lab/semester', ...adminOnly, async (req, res) => {
+  try {
+    const { lab, lecturer, studentBatch, timeSlot, purpose, semesterId, dayOfWeek, selectedDates } = req.body;
+    if (!lab || !lecturer || !studentBatch || !timeSlot)
+      return res.status(400).json({ message: 'Lab, lecturer, batch and time slot are required' });
+
+    let dates = [];
+    if (selectedDates && selectedDates.length > 0) {
+      dates = selectedDates.map(d => new Date(d + 'T12:00:00'));
+    } else if (semesterId && dayOfWeek !== undefined && dayOfWeek !== '') {
+      const Semester = require('../models/Semester');
+      const semester = await Semester.findById(semesterId);
+      if (!semester) return res.status(404).json({ message: 'Semester not found' });
+      const day = parseInt(dayOfWeek);
+      const cur = new Date(semester.startDate); cur.setHours(12,0,0,0);
+      const end = new Date(semester.endDate); end.setHours(23,59,59,999);
+      while (cur.getDay() !== day) cur.setDate(cur.getDate() + 1);
+      while (cur <= end) { dates.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+    } else {
+      return res.status(400).json({ message: 'Provide semester + day of week, or specific dates' });
+    }
+
+    if (dates.length === 0) return res.status(400).json({ message: 'No valid dates found' });
+
+    // Check conflicts
+    const conflicts = [];
+    for (const date of dates) {
+      const d = new Date(date); d.setHours(0,0,0,0);
+      const dEnd = new Date(date); dEnd.setHours(23,59,59,999);
+      const conflict = await Booking.findOne({ lab, timeSlot, status: { $ne: 'rejected' }, date: { $gte: d, $lte: dEnd } });
+      if (conflict) conflicts.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    }
+    if (conflicts.length > 0)
+      return res.status(400).json({
+        message: `Conflicts on: ${conflicts.slice(0,5).join(', ')}${conflicts.length > 5 ? ` and ${conflicts.length-5} more` : ''}`,
+        conflicts,
+      });
+
+    const bookings = await Booking.insertMany(dates.map(date => ({
+      lab, lecturer, studentBatch,
+      date, timeSlot,
+      purpose: purpose || '',
+      status: 'approved',
+      handledBy: req.user._id,
+      handledAt: new Date(),
+    })));
+
+    res.status(201).json({ message: `${bookings.length} lab session${bookings.length !== 1 ? 's' : ''} assigned successfully`, count: bookings.length });
+  } catch (err) {
+    console.error('POST /admin/assign-lab/semester:', err.message);
+    res.status(500).json({ message: err.message });
+  }
 });

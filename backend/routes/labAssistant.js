@@ -95,3 +95,100 @@ router.get('/schedule', ...assistantAccess, async (req, res) => {
 });
 
 module.exports = router;
+
+// ── DIRECT LAB ASSIGNMENT (Lab Assistant) ─────────────────────────────────────
+// Lab assistant assigns a lab directly for labs they manage
+
+router.post('/assign-lab', ...assistantAccess, async (req, res) => {
+  try {
+    const Lab = require('../models/Lab');
+    const Booking = require('../models/Booking');
+    const { lab, lecturer, studentBatch, date, timeSlot, purpose } = req.body;
+    if (!lab || !lecturer || !studentBatch || !date || !timeSlot)
+      return res.status(400).json({ message: 'Lab, lecturer, batch, date and time slot are required' });
+
+    // Verify assistant is assigned to this lab
+    const labDoc = await Lab.findById(lab);
+    const isAssigned = labDoc?.assignedAssistants?.some(a => a.toString() === req.user._id.toString());
+    if (!isAssigned) return res.status(403).json({ message: 'You are not assigned to this lab' });
+
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const dEnd = new Date(date); dEnd.setHours(23,59,59,999);
+    const conflict = await Booking.findOne({ lab, timeSlot, status: { $ne: 'rejected' }, date: { $gte: d, $lte: dEnd } });
+    if (conflict) return res.status(400).json({ message: 'That time slot is already booked' });
+
+    const booking = await Booking.create({
+      lab, lecturer, studentBatch,
+      date: new Date(date), timeSlot,
+      purpose: purpose || '',
+      status: 'approved',
+      handledBy: req.user._id,
+      handledAt: new Date(),
+    });
+
+    await booking.populate([
+      { path: 'lab', select: 'name location' },
+      { path: 'lecturer', select: 'name email' },
+      { path: 'studentBatch', select: 'name focusArea' },
+    ]);
+    res.status(201).json({ message: 'Lab session assigned', booking });
+  } catch (err) {
+    console.error('POST /assistant/assign-lab:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/assign-lab/semester', ...assistantAccess, async (req, res) => {
+  try {
+    const Lab = require('../models/Lab');
+    const Booking = require('../models/Booking');
+    const Semester = require('../models/Semester');
+    const { lab, lecturer, studentBatch, timeSlot, purpose, semesterId, dayOfWeek, selectedDates } = req.body;
+    if (!lab || !lecturer || !studentBatch || !timeSlot)
+      return res.status(400).json({ message: 'Lab, lecturer, batch and time slot are required' });
+
+    const labDoc = await Lab.findById(lab);
+    const isAssigned = labDoc?.assignedAssistants?.some(a => a.toString() === req.user._id.toString());
+    if (!isAssigned) return res.status(403).json({ message: 'You are not assigned to this lab' });
+
+    let dates = [];
+    if (selectedDates && selectedDates.length > 0) {
+      dates = selectedDates.map(d => new Date(d + 'T12:00:00'));
+    } else if (semesterId && dayOfWeek !== undefined && dayOfWeek !== '') {
+      const semester = await Semester.findById(semesterId);
+      if (!semester) return res.status(404).json({ message: 'Semester not found' });
+      const day = parseInt(dayOfWeek);
+      const cur = new Date(semester.startDate); cur.setHours(12,0,0,0);
+      const end = new Date(semester.endDate); end.setHours(23,59,59,999);
+      while (cur.getDay() !== day) cur.setDate(cur.getDate() + 1);
+      while (cur <= end) { dates.push(new Date(cur)); cur.setDate(cur.getDate() + 7); }
+    } else {
+      return res.status(400).json({ message: 'Provide semester + day of week, or specific dates' });
+    }
+
+    if (dates.length === 0) return res.status(400).json({ message: 'No valid dates found' });
+
+    const conflicts = [];
+    for (const date of dates) {
+      const d = new Date(date); d.setHours(0,0,0,0);
+      const dEnd = new Date(date); dEnd.setHours(23,59,59,999);
+      const conflict = await Booking.findOne({ lab, timeSlot, status: { $ne: 'rejected' }, date: { $gte: d, $lte: dEnd } });
+      if (conflict) conflicts.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+    if (conflicts.length > 0)
+      return res.status(400).json({ message: `Conflicts on: ${conflicts.join(', ')}`, conflicts });
+
+    const bookings = await Booking.insertMany(dates.map(date => ({
+      lab, lecturer, studentBatch, date, timeSlot,
+      purpose: purpose || '',
+      status: 'approved',
+      handledBy: req.user._id,
+      handledAt: new Date(),
+    })));
+
+    res.status(201).json({ message: `${bookings.length} session${bookings.length !== 1 ? 's' : ''} assigned`, count: bookings.length });
+  } catch (err) {
+    console.error('POST /assistant/assign-lab/semester:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});

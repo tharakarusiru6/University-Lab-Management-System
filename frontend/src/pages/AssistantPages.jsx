@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import AssignLabPage from './AssignLabPage.jsx';
 import { Routes, Route } from 'react-router-dom';
 import api from '../utils/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -783,6 +784,7 @@ export default function AssistantApp() {
         <Route path="my-labs" element={<MyLabsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="recurring" element={<RecurringRequestsPage />} />
+        <Route path="assign-lab" element={<AssignLabPage apiPrefix="assistant" />} />
         <Route path="schedule" element={<SchedulePage apiPrefix="assistant" />} />
       </Routes>
     </div>

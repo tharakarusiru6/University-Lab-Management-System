@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminSemesterPage } from './SemesterPages.jsx';
+import AssignLabPage from './AssignLabPage.jsx';
 import { Routes, Route, Link } from 'react-router-dom';
 import api from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
@@ -792,6 +793,7 @@ export default function AdminApp() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="schedule" element={<SchedulePage apiPrefix="admin" />} />
         <Route path="semesters" element={<AdminSemesterPage />} />
+        <Route path="assign-lab" element={<AssignLabPage apiPrefix="admin" />} />
       </Routes>
     </div>
   );
