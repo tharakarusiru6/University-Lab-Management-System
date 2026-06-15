@@ -333,6 +333,11 @@ export function LecturerRecurringPage() {
       const { data } = await api.post(`/semesters/${selected._id}/book`, payload);
       setResult({ success: true, message: data.message, count: data.count });
       addToast(data.message, 'success');
+      // Clear form after success
+      setForm({ lab: '', studentBatch: '', timeSlot: '', dayOfWeek: '', purpose: '' });
+      setCustomDates([]);
+      setPreview([]);
+      setMode('whole');
     } catch (err) {
       const msg = err.response?.data?.message || 'Booking failed';
       setResult({ success: false, message: msg });

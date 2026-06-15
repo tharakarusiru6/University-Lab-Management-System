@@ -329,14 +329,81 @@ function BookingCard({ b, onEdit, onCancel, onViewStudents }) {
   );
 }
 
+function RecurringBookingCard({ r }) {
+  const statusColor = { approved: '#3dd68c', pending: '#f5a623', rejected: '#f75a5a', partial: '#4f6ef7' };
+  const statusBg    = { approved: 'rgba(61,214,140,0.1)', pending: 'rgba(245,166,35,0.1)', rejected: 'rgba(247,90,90,0.1)', partial: 'rgba(79,142,247,0.1)' };
+  const sc = statusColor[r.status] || '#f5a623';
+  const sb = statusBg[r.status] || 'rgba(245,166,35,0.1)';
+
+  return (
+    <Card style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <h3 style={{ fontSize: '16px' }}>{r.lab?.name || 'Unknown Lab'}</h3>
+            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(79,142,247,0.12)', color: '#4f6ef7', border: '1px solid rgba(79,142,247,0.3)', fontWeight: '600' }}>SEMESTER</span>
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>{r.lab?.location}</div>
+        </div>
+        <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', background: sb, color: sc, border: `1px solid ${sc}44`, textTransform: 'capitalize' }}>{r.status}</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', fontSize: '13px' }}>
+        <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Semester</div>
+          <div style={{ fontWeight: '500' }}>{r.semester?.name || '—'}</div>
+          <div style={{ color: 'var(--text2)', fontSize: '11px', marginTop: '2px' }}>
+            {r.semester?.startDate ? new Date(r.semester.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} — {r.semester?.endDate ? new Date(r.semester.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+          </div>
+        </div>
+        <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time Slot</div>
+          <div style={{ fontWeight: '500', color: '#7c9ef8' }}>{SLOT_LABELS[r.timeSlot]}</div>
+        </div>
+        <div style={{ padding: '10px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student Batch</div>
+          <div style={{ fontWeight: '500' }}>{r.studentBatch?.name || '—'}</div>
+          <div style={{ color: 'var(--text2)', fontSize: '11px', marginTop: '2px' }}>{r.studentBatch?.focusArea}</div>
+        </div>
+      </div>
+
+      {/* Session pills */}
+      <div>
+        <div style={{ fontSize: '11px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+          Sessions ({r.sessions?.length})
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+          {r.sessions?.map((s, i) => {
+            const c = statusColor[s.status] || '#f5a623';
+            const bg = statusBg[s.status] || 'rgba(245,166,35,0.1)';
+            return (
+              <span key={i} style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', background: bg, color: c, border: `1px solid ${c}33` }}>
+                {new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {r.purpose && (
+        <div style={{ fontSize: '13px', color: 'var(--text2)', padding: '10px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+          <span style={{ color: 'var(--text3)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Purpose: </span>{r.purpose}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MyBookingsPage() {
   const { addToast } = useToast();
   const [bookings, setBookings] = useState([]);
+  const [recurring, setRecurring] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [type, setType] = useState('regular'); // 'regular' | 'semester'
   const [filter, setFilter] = useState('all');
   const [studentModal, setStudentModal] = useState(null);
-  const [editModal, setEditModal] = useState(null);   // booking being edited
-  const [cancelId, setCancelId] = useState(null);     // booking id to confirm cancel
+  const [editModal, setEditModal] = useState(null);
+  const [cancelId, setCancelId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [labs, setLabs] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -344,7 +411,10 @@ function MyBookingsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get('/lecturer/bookings').then(r => setBookings(r.data)).finally(() => setLoading(false));
+    Promise.all([
+      api.get('/lecturer/bookings').then(r => setBookings(r.data)).catch(() => {}),
+      api.get('/semesters/my-recurring').then(r => setRecurring(r.data)).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -397,31 +467,55 @@ function MyBookingsPage() {
     <div className="page">
       <PageHeader title="My Lab Requests" subtitle="Track all your booking requests" action={<Button size="sm" variant="secondary" onClick={load}>↻ Refresh</Button>} />
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {['all', 'pending', 'approved', 'rejected'].map(s => (
-          <button key={s} onClick={() => setFilter(s)} style={{
-            padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s',
-            background: filter === s ? 'var(--accent)' : 'var(--bg3)',
-            color: filter === s ? '#fff' : 'var(--text2)',
-            textTransform: 'capitalize'
-          }}>{s}</button>
+      {/* Type switcher */}
+      <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px', width: 'fit-content' }}>
+        {[['regular', `Regular (${bookings.length})`], ['semester', `Semester (${recurring.length})`]].map(([v, label]) => (
+          <button key={v} onClick={() => setType(v)} style={{
+            padding: '8px 20px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+            background: type === v ? '#4f6ef7' : 'var(--bg3)',
+            color: type === v ? '#fff' : 'var(--text2)',
+            transition: 'all 0.15s',
+          }}>{label}</button>
         ))}
       </div>
 
-      {loading ? <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {filtered.length === 0
-            ? <EmptyState Icon={ClipboardIcon} title="No requests found" description="Submit a booking request from the Book a Lab page" />
-            : filtered.map(b => (
-            <BookingCard
-              key={b._id}
-              b={b}
-              onEdit={openEdit}
-              onCancel={setCancelId}
-              onViewStudents={setStudentModal}
-            />
-          ))}
-        </div>
+      {/* Regular bookings */}
+      {type === 'regular' && (
+        <>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            {['all', 'pending', 'approved', 'rejected'].map(s => (
+              <button key={s} onClick={() => setFilter(s)} style={{
+                padding: '7px 14px', borderRadius: '8px', border: 'none', fontSize: '13px', cursor: 'pointer',
+                background: filter === s ? 'var(--accent)' : 'var(--bg3)',
+                color: filter === s ? '#fff' : 'var(--text2)',
+                textTransform: 'capitalize',
+              }}>{s}</button>
+            ))}
+          </div>
+          {loading ? <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filtered.length === 0
+                ? <EmptyState Icon={ClipboardIcon} title="No requests found" description="Submit a booking request from the Book a Lab page" />
+                : filtered.map(b => (
+                  <BookingCard key={b._id} b={b} onEdit={openEdit} onCancel={setCancelId} onViewStudents={setStudentModal} />
+                ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Semester bookings */}
+      {type === 'semester' && (
+        <>
+          {loading ? <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {recurring.length === 0
+                ? <EmptyState Icon={CalendarIcon} title="No semester bookings yet" description="Use Semester Booking to book a lab for an entire semester" />
+                : recurring.map(r => <RecurringBookingCard key={r._id} r={r} />)
+              }
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Edit Modal ── */}
