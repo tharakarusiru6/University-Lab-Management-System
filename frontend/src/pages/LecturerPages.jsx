@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { LecturerRecurringPage } from './SemesterPages.jsx';
 import { Routes, Route } from 'react-router-dom';
 import api from '../utils/api.js';
 import { useToast } from '../context/ToastContext.jsx';
@@ -688,6 +689,7 @@ export default function LecturerApp() {
         <Route index element={<LecturerDashboard />} />
         <Route path="book" element={<BookLabPage />} />
         <Route path="bookings" element={<MyBookingsPage />} />
+        <Route path="semester-booking" element={<LecturerRecurringPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </div>

@@ -4,7 +4,7 @@ import api from '../utils/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, Card, Badge, Modal, Input, Spinner, EmptyState, StatusBadge } from '../components/common/UI.jsx';
-import { AlertCircleIcon, CheckCircleIcon, ClipboardIcon, FlaskIcon, MapPinIcon, UsersGroupIcon, CalendarIcon, ClockIcon, SettingsIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/common/Icons.jsx';
+import { AlertCircleIcon, RefreshIcon, CheckCircleIcon, ClipboardIcon, FlaskIcon, MapPinIcon, UsersGroupIcon, CalendarIcon, ClockIcon, SettingsIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/common/Icons.jsx';
 
 const SLOT_LABELS = { '08:00-10:00': '8:00 AM – 10:00 AM', '10:00-12:00': '10:00 AM – 12:00 PM', '12:00-14:00': '12:00 PM – 2:00 PM', '14:00-16:00': '2:00 PM – 4:00 PM' };
 
@@ -574,6 +574,206 @@ function SchedulePage({ apiPrefix }) {
   );
 }
 
+
+const SLOT_LABELS_R = { '08:00-10:00':'8:00–10:00 AM','10:00-12:00':'10:00 AM–12:00 PM','12:00-14:00':'12:00–2:00 PM','14:00-16:00':'2:00–4:00 PM' };
+
+function RecurringRequestsPage() {
+  const { addToast } = useToast();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
+  const [modal, setModal] = useState(null); // the recurring booking being reviewed
+  const [decisions, setDecisions] = useState({}); // { index: 'approved'|'rejected' }
+  const [rejectReason, setRejectReason] = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api.get('/semesters/recurring-requests')
+      .then(r => setRequests(r.data))
+      .catch(() => addToast('Failed to load recurring requests', 'error'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openModal = (req) => {
+    setModal(req);
+    // default all to approved
+    const d = {};
+    req.sessions.forEach((_, i) => { d[i] = req.sessions[i].status === 'pending' ? 'approved' : req.sessions[i].status; });
+    setDecisions(d);
+    setRejectReason('');
+  };
+
+  const toggleSession = (index) => {
+    setDecisions(prev => ({ ...prev, [index]: prev[index] === 'approved' ? 'rejected' : 'approved' }));
+  };
+
+  const approveAll = () => {
+    const d = {};
+    modal.sessions.forEach((_, i) => { d[i] = 'approved'; });
+    setDecisions(d);
+  };
+
+  const rejectAll = () => {
+    const d = {};
+    modal.sessions.forEach((_, i) => { d[i] = 'rejected'; });
+    setDecisions(d);
+  };
+
+  const submit = async () => {
+    setProcessing(modal._id);
+    try {
+      const sessionDecisions = Object.entries(decisions).map(([index, status]) => ({
+        index: parseInt(index), status,
+        rejectionReason: status === 'rejected' ? (rejectReason || 'Rejected by lab assistant') : '',
+      }));
+      const { data } = await api.patch(`/semesters/recurring-requests/${modal._id}/process`, { sessionDecisions });
+      addToast(data.message, 'success');
+      setModal(null);
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to process', 'error');
+    } finally { setProcessing(null); }
+  };
+
+  const statusColor = { approved: '#3dd68c', pending: '#f5a623', rejected: '#f75a5a', partial: '#4f6ef7' };
+  const statusBg    = { approved: 'rgba(61,214,140,0.1)', pending: 'rgba(245,166,35,0.1)', rejected: 'rgba(247,90,90,0.1)', partial: 'rgba(79,142,247,0.1)' };
+
+  return (
+    <div className="page">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.7rem', fontFamily: 'Syne, sans-serif', fontWeight: '700', color: 'var(--text)' }}>Recurring Requests</h1>
+          <p style={{ color: 'var(--text3)', marginTop: '4px', fontSize: '14px' }}>Semester-wide lab booking requests from lecturers</p>
+        </div>
+        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', fontSize: '13px', cursor: 'pointer' }}>
+          <RefreshIcon size={14} /> Refresh
+        </button>
+      </div>
+
+      {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Spinner /></div>
+      : requests.length === 0 ? <EmptyState Icon={ClipboardIcon} title="No recurring requests" description="Recurring semester booking requests from lecturers will appear here" />
+      : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {requests.map(req => (
+            <div key={req._id} style={{ background: 'var(--bg2)', border: `1px solid ${statusColor[req.status]}44`, borderLeft: `3px solid ${statusColor[req.status]}`, borderRadius: '12px', padding: '16px 18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>{req.lab?.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{req.semester?.name} · {SLOT_LABELS_R[req.timeSlot]}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px' }}>By {req.lecturer?.name} · {req.studentBatch?.name}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: statusBg[req.status], color: statusColor[req.status], border: `1px solid ${statusColor[req.status]}44`, textTransform: 'capitalize' }}>
+                    {req.status}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>{req.sessions?.length} sessions</span>
+                </div>
+              </div>
+
+              {/* Session summary pills */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
+                {req.sessions?.map((s, i) => (
+                  <span key={i} style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', background: statusBg[s.status], color: statusColor[s.status], border: `1px solid ${statusColor[s.status]}33` }}>
+                    {new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                ))}
+              </div>
+
+              {req.status === 'pending' && (
+                <button onClick={() => openModal(req)} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#4f6ef7', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                  Review Request
+                </button>
+              )}
+              {(req.status === 'partial' || req.status === 'approved' || req.status === 'rejected') && (
+                <button onClick={() => openModal(req)} style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', fontSize: '13px', cursor: 'pointer' }}>
+                  View Details
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text)', fontFamily: 'Syne, sans-serif' }}>Review Recurring Request</h2>
+                <div style={{ fontSize: '13px', color: 'var(--text3)', marginTop: '3px' }}>{modal.lab?.name} · {SLOT_LABELS_R[modal.timeSlot]}</div>
+              </div>
+              <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              {[
+                { label: 'Lecturer', value: modal.lecturer?.name },
+                { label: 'Batch', value: modal.studentBatch?.name },
+                { label: 'Semester', value: modal.semester?.name },
+                { label: 'Purpose', value: modal.purpose || '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: '8px 12px', background: 'var(--bg3)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick actions */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              <button onClick={approveAll} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: '1px solid rgba(61,214,140,0.35)', background: 'rgba(61,214,140,0.1)', color: '#3dd68c', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                ✓ Approve All ({modal.sessions.length})
+              </button>
+              <button onClick={rejectAll} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: '1px solid rgba(247,90,90,0.35)', background: 'rgba(247,90,90,0.08)', color: '#f75a5a', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                ✕ Reject All
+              </button>
+            </div>
+
+            {/* Per-session toggle */}
+            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+              Sessions — click to toggle approve/reject
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px', maxHeight: '200px', overflowY: 'auto' }}>
+              {modal.sessions.map((s, i) => {
+                const dec = decisions[i] || s.status;
+                const isApproved = dec === 'approved';
+                return (
+                  <button key={i} onClick={() => toggleSession(i)}
+                    style={{ padding: '6px 12px', borderRadius: '8px', border: `1px solid ${isApproved ? 'rgba(61,214,140,0.4)' : 'rgba(247,90,90,0.4)'}`, background: isApproved ? 'rgba(61,214,140,0.12)' : 'rgba(247,90,90,0.1)', color: isApproved ? '#3dd68c' : '#f75a5a', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s' }}>
+                    {new Date(s.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    <span style={{ marginLeft: '6px', fontSize: '10px' }}>{isApproved ? '✓' : '✕'}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Rejection reason */}
+            {Object.values(decisions).some(d => d === 'rejected') && (
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Rejection Reason</div>
+                <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={2}
+                  placeholder="Reason for rejected sessions..."
+                  style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '13px', padding: '8px 12px', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setModal(null)} style={{ padding: '9px 18px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={submit} disabled={!!processing}
+                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: processing ? '#2a5ab8' : '#4f6ef7', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: processing ? 'not-allowed' : 'pointer', opacity: processing ? 0.7 : 1 }}>
+                {processing ? 'Processing...' : `Submit Decision (${Object.values(decisions).filter(d => d === 'approved').length} approved, ${Object.values(decisions).filter(d => d === 'rejected').length} rejected)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AssistantApp() {
   return (
     <div style={{ padding: '32px' }}>
@@ -582,6 +782,7 @@ export default function AssistantApp() {
         <Route path="requests" element={<RequestsPage />} />
         <Route path="my-labs" element={<MyLabsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="recurring" element={<RecurringRequestsPage />} />
         <Route path="schedule" element={<SchedulePage apiPrefix="assistant" />} />
       </Routes>
     </div>
