@@ -94,6 +94,30 @@ router.get('/schedule', ...assistantAccess, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
+
+// GET /api/assistant/schedule/semester/:id
+router.get('/schedule/semester/:id', ...assistantAccess, async (req, res) => {
+  try {
+    const Semester = require('../models/Semester');
+    const semester = await Semester.findById(req.params.id);
+    if (!semester) return res.status(404).json({ message: 'Semester not found' });
+
+    const myLabs = await Lab.find({ assignedAssistants: req.user._id });
+    const labIds = myLabs.map(l => l._id);
+
+    const bookings = await Booking.find({
+      lab: { $in: labIds },
+      date: { $gte: semester.startDate, $lte: semester.endDate }
+    })
+      .populate('lab', 'name location capacity')
+      .populate('lecturer', 'name email')
+      .populate('studentBatch', 'name academicYear focusArea')
+      .sort({ date: 1, timeSlot: 1 });
+
+    res.json({ bookings, labs: myLabs, semester });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 module.exports = router;
 
 // ── DIRECT LAB ASSIGNMENT (Lab Assistant) ─────────────────────────────────────

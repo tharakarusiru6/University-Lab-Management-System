@@ -615,18 +615,229 @@ const STATUS_COLORS = {
   rejected: { bg: 'rgba(247,90,90,0.08)',  border: 'rgba(247,90,90,0.25)',   text: '#f75a5a', dot: '#f75a5a' },
 };
 
+
+
+function generateSchedulePDF({ bookings, labs, title, subtitle, rangeLabel }) {
+  const TIME_SLOTS = ['08:00-10:00','10:00-12:00','12:00-14:00','14:00-16:00'];
+  const SLOT_LABELS = {
+    '08:00-10:00':'8:00 – 10:00 AM',
+    '10:00-12:00':'10:00 AM – 12:00 PM',
+    '12:00-14:00':'12:00 – 2:00 PM',
+    '14:00-16:00':'2:00 – 4:00 PM'
+  };
+  const STATUS_BG     = { approved:'#d1fae5', pending:'#fef3c7', rejected:'#fee2e2' };
+  const STATUS_TEXT   = { approved:'#065f46', pending:'#92400e', rejected:'#991b1b' };
+  const STATUS_BORDER = { approved:'#6ee7b7', pending:'#fcd34d', rejected:'#fca5a5' };
+  const STATUS_DOT    = { approved:'#10b981', pending:'#f59e0b', rejected:'#ef4444' };
+
+  // For single-day: grid view; for range: list grouped by date
+  const isRange = rangeLabel && rangeLabel.includes('→');
+
+  // Build grid for single-day
+  const grid = {};
+  labs.forEach(lab => { grid[lab._id] = {}; });
+  bookings.forEach(b => {
+    const labId = b.lab?._id || b.lab;
+    if (labId) { grid[labId] = grid[labId] || {}; grid[labId][b.timeSlot] = b; }
+  });
+
+  // Group by date for range view
+  const byDate = {};
+  if (isRange) {
+    bookings.forEach(b => {
+      const d = new Date(b.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(b);
+    });
+  }
+
+  const approved = bookings.filter(b => b.status === 'approved').length;
+  const pending  = bookings.filter(b => b.status === 'pending').length;
+  const rejected = bookings.filter(b => b.status === 'rejected').length;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#fff;color:#111;padding:28px 32px;font-size:12px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #2563eb}
+.logo-box{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px}
+.logo-text{font-size:18px;font-weight:800;color:#1e293b;letter-spacing:-0.5px}
+.logo-sub{font-size:10px;color:#6b7280;margin-top:2px}
+.header-right{text-align:right}
+.h-title{font-size:16px;font-weight:700;color:#1e293b}
+.h-sub{font-size:11px;color:#6b7280;margin-top:2px}
+.h-range{display:inline-block;background:#eff6ff;color:#1d4ed8;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:600;margin-top:6px;border:1px solid #bfdbfe}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center}
+.stat-val{font-size:22px;font-weight:800;color:#1e293b}
+.stat-val.green{color:#059669}
+.stat-val.yellow{color:#d97706}
+.stat-val.red{color:#dc2626}
+.stat-lbl{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-top:2px}
+.legend{display:flex;gap:16px;margin-bottom:14px;align-items:center}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#374151}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+.section-title{font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
+/* Grid table */
+table{width:100%;border-collapse:collapse;margin-bottom:22px;font-size:11px}
+th{background:#1e293b;color:#fff;padding:9px 10px;text-align:left;border:1px solid #334155;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+th.center{text-align:center}
+td{border:1px solid #e2e8f0;vertical-align:top;padding:0}
+.lab-cell{padding:9px 12px;background:#f8fafc;min-width:120px;vertical-align:middle}
+.lab-name{font-weight:700;color:#1e293b;font-size:11px}
+.lab-loc{font-size:9px;color:#6b7280;margin-top:2px}
+.lab-cap{font-size:9px;color:#9ca3af;margin-top:1px}
+.slot-cell{padding:5px;height:80px;min-width:120px}
+.booked{border-radius:5px;padding:6px 7px;height:100%;display:flex;flex-direction:column}
+.s-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.s-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.s-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+.b-batch{font-size:10px;font-weight:600;color:#1e293b;line-height:1.3}
+.b-lect{font-size:9px;color:#4b5563;margin-top:2px}
+.b-purp{font-size:8px;color:#6b7280;margin-top:2px;font-style:italic;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
+.free{color:#d1d5db;font-size:9px;font-style:italic;height:100%;display:flex;align-items:center;justify-content:center;background:#fafafa;border-radius:5px;border:1px dashed #e5e7eb}
+/* List / range table */
+.list-tbl th{font-size:9px}
+.list-tbl td{padding:7px 10px;font-size:10px;vertical-align:middle}
+.list-tbl tr:nth-child(even) td{background:#f8fafc}
+.date-header td{background:#1e293b !important;color:#fff;font-weight:700;font-size:10px;padding:7px 12px}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+.footer{margin-top:24px;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#9ca3af}
+@media print{body{padding:14px 18px}@page{size:A4 landscape;margin:10mm}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-box">
+    <div class="logo-icon">U</div>
+    <div>
+      <div class="logo-text">UniLab</div>
+      <div class="logo-sub">University Laboratory Management System</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="h-title">${title}</div>
+    <div class="h-sub">${subtitle}</div>
+    <div class="h-range">${rangeLabel}</div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val">${labs.length}</div><div class="stat-lbl">Labs</div></div>
+  <div class="stat"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Total Sessions</div></div>
+  <div class="stat"><div class="stat-val green">${approved}</div><div class="stat-lbl">Approved</div></div>
+  <div class="stat"><div class="stat-val yellow">${pending}</div><div class="stat-lbl">Pending</div></div>
+  <div class="stat"><div class="stat-val red">${rejected}</div><div class="stat-lbl">Rejected</div></div>
+</div>
+
+<div class="legend">
+  <span style="font-size:10px;font-weight:600;color:#374151">Status:</span>
+  <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div>Approved</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>Pending</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>Rejected</div>
+</div>
+
+${!isRange ? `
+<div class="section-title">Timetable Grid</div>
+<table>
+  <thead>
+    <tr>
+      <th>Lab</th>
+      ${TIME_SLOTS.map(s=>`<th class="center">${SLOT_LABELS[s]}</th>`).join('')}
+    </tr>
+  </thead>
+  <tbody>
+    ${labs.map(lab => `<tr>
+      <td class="lab-cell">
+        <div class="lab-name">${lab.name}</div>
+        <div class="lab-loc">${lab.location||''}</div>
+        ${lab.capacity?`<div class="lab-cap">Cap: ${lab.capacity}</div>`:''}
+      </td>
+      ${TIME_SLOTS.map(slot => {
+        const b = grid[lab._id]?.[slot];
+        if (b) {
+          return `<td class="slot-cell">
+            <div class="booked" style="background:${STATUS_BG[b.status]||'#fef3c7'};border:1px solid ${STATUS_BORDER[b.status]||'#fcd34d'}">
+              <div class="s-row">
+                <div class="s-dot" style="background:${STATUS_DOT[b.status]||'#f59e0b'}"></div>
+                <span class="s-lbl" style="color:${STATUS_TEXT[b.status]||'#92400e'}">${b.status}</span>
+              </div>
+              <div class="b-batch">${b.studentBatch?.name||'N/A'}</div>
+              <div class="b-lect">${b.lecturer?.name||''}</div>
+              ${b.purpose?`<div class="b-purp">${b.purpose}</div>`:''}
+            </div>
+          </td>`;
+        }
+        return `<td class="slot-cell"><div class="free">Free</div></td>`;
+      }).join('')}
+    </tr>`).join('')}
+  </tbody>
+</table>` : ''}
+
+${isRange && Object.keys(byDate).length > 0 ? `
+<div class="section-title">Session Schedule</div>
+<table class="list-tbl">
+  <thead>
+    <tr>
+      <th>Date</th><th>Time Slot</th><th>Lab</th><th>Batch</th><th>Lecturer</th><th>Purpose</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${Object.entries(byDate).map(([dateStr, bks]) => `
+      ${bks.map((b,i) => `<tr ${i===0?'':''}">
+        <td style="font-weight:600;color:#1e293b">${i===0?dateStr:''}</td>
+        <td style="font-weight:500">${SLOT_LABELS[b.timeSlot]||b.timeSlot}</td>
+        <td><strong>${b.lab?.name||'N/A'}</strong><br><span style="color:#6b7280;font-size:9px">${b.lab?.location||''}</span></td>
+        <td>${b.studentBatch?.name||'N/A'}<br><span style="color:#6b7280;font-size:9px">${b.studentBatch?.focusArea||''}</span></td>
+        <td>${b.lecturer?.name||'N/A'}</td>
+        <td style="color:#6b7280">${b.purpose||'—'}</td>
+        <td><span class="badge" style="background:${STATUS_BG[b.status]||'#fef3c7'};color:${STATUS_TEXT[b.status]||'#92400e'};border:1px solid ${STATUS_BORDER[b.status]||'#fcd34d'}">${b.status}</span></td>
+      </tr>`).join('')}
+    `).join('')}
+  </tbody>
+</table>` : ''}
+
+${bookings.length === 0 ? '<p style="color:#9ca3af;font-style:italic;text-align:center;padding:40px">No bookings found for this selection.</p>' : ''}
+
+<div class="footer">
+  <span>UniLab — University Laboratory Management System</span>
+  <span>Generated: ${new Date().toLocaleString()}</span>
+</div>
+
+<script>window.onload=function(){window.print();}</script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
+
 function SchedulePage({ apiPrefix }) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [data, setData] = useState({ bookings: [], labs: [] });
+  const [batches, setBatches] = useState([]);
+  const [semesters, setSemesters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('grid');
+  const [filterType, setFilterType] = useState('all'); // 'all'|'lab'|'batch'
+  const [filterValue, setFilterValue] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get(`/${apiPrefix}/schedule?date=${date}`)
-      .then(r => setData(r.data))
-      .catch(() => setData({ bookings: [], labs: [] }))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get(`/${apiPrefix}/schedule?date=${date}`).then(r => setData(r.data)).catch(() => setData({ bookings: [], labs: [] })),
+      api.get('/admin/batches').then(r => setBatches(r.data)).catch(() => {}),
+      api.get('/semesters').then(r => setSemesters(r.data)).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, [date, apiPrefix]);
 
   useEffect(() => { load(); }, [load]);
@@ -682,6 +893,77 @@ function SchedulePage({ apiPrefix }) {
           </div>
         </div>
       </div>
+
+      {/* PDF Filter + Export Row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '12px 16px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '16px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Export PDF</span>
+        <select value={filterType} onChange={e => { setFilterType(e.target.value); setFilterValue(''); }}
+          style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
+          <option value="day_all">Today — All Labs</option>
+          <option value="day_lab">Today — By Lab</option>
+          <option value="day_batch">Today — By Batch</option>
+          <option value="semester">Whole Semester</option>
+        </select>
+        {filterType === 'day_lab' && (
+          <select value={filterValue} onChange={e => setFilterValue(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
+            <option value="">Select lab</option>
+            {data.labs.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}
+          </select>
+        )}
+        {filterType === 'day_batch' && (
+          <select value={filterValue} onChange={e => setFilterValue(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
+            <option value="">Select batch</option>
+            {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+          </select>
+        )}
+        {filterType === 'semester' && (
+          <select value={filterValue} onChange={e => setFilterValue(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
+            <option value="">Select semester</option>
+            {semesters.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+          </select>
+        )}
+        <button
+          onClick={async () => {
+            if (filterType === 'semester') {
+              if (!filterValue) { alert('Please select a semester'); return; }
+              try {
+                const r = await api.get(`/${apiPrefix}/schedule/semester/${filterValue}`);
+                const sem = semesters.find(s => s._id === filterValue);
+                generateSchedulePDF({
+                  bookings: r.data.bookings,
+                  labs: r.data.labs,
+                  title: 'Semester Lab Schedule',
+                  subtitle: sem?.name || 'Semester',
+                  rangeLabel: `${new Date(r.data.semester?.startDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} → ${new Date(r.data.semester?.endDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`,
+                });
+              } catch(e) { alert('Failed to load semester data'); }
+            } else {
+              let bkgs = [...data.bookings];
+              let lbs = [...data.labs];
+              if (filterType === 'day_lab' && filterValue) {
+                bkgs = bkgs.filter(b => (b.lab?._id || b.lab) === filterValue);
+                lbs = lbs.filter(l => l._id === filterValue);
+              } else if (filterType === 'day_batch' && filterValue) {
+                bkgs = bkgs.filter(b => (b.studentBatch?._id || b.studentBatch) === filterValue);
+              }
+              generateSchedulePDF({
+                bookings: bkgs,
+                labs: lbs,
+                title: 'Daily Lab Schedule',
+                subtitle: filterType === 'day_batch' ? `Batch: ${batches.find(b=>b._id===filterValue)?.name||'All'}` : 'All Labs',
+                rangeLabel: displayDate,
+              });
+            }
+          }}
+          disabled={loading}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#4f6ef7', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}>
+          ⬇ Download PDF
+        </button>
+      </div>
+
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Spinner /></div>

@@ -250,6 +250,26 @@ router.get('/schedule', ...adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
+// GET /api/admin/schedule/semester/:id — all bookings across a whole semester
+router.get('/schedule/semester/:id', ...adminOnly, async (req, res) => {
+  try {
+    const Semester = require('../models/Semester');
+    const semester = await Semester.findById(req.params.id);
+    if (!semester) return res.status(404).json({ message: 'Semester not found' });
+
+    const bookings = await Booking.find({
+      date: { $gte: semester.startDate, $lte: semester.endDate }
+    })
+      .populate('lab', 'name location capacity')
+      .populate('lecturer', 'name email')
+      .populate('studentBatch', 'name academicYear focusArea')
+      .sort({ date: 1, timeSlot: 1 });
+
+    const labs = await Lab.find({ isActive: true });
+    res.json({ bookings, labs, semester });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 // ── DIRECT LAB ASSIGNMENT (Admin) ─────────────────────────────────────────────
 // Admin assigns a lab directly — booking created as approved immediately
 
