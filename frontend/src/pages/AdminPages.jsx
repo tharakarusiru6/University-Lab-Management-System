@@ -617,7 +617,8 @@ const STATUS_COLORS = {
 
 
 
-function generateSchedulePDF({ bookings, labs, title, subtitle, rangeLabel }) {
+function generateSchedulePDF({ bookings, labs, title, subtitle, rangeLabel, batchId, batchName }) {
+  if (batchId) { bookings = bookings.filter(b => (b.studentBatch?._id || b.studentBatch) === batchId); }
   const TIME_SLOTS = ['08:00-10:00','10:00-12:00','12:00-14:00','14:00-16:00'];
   const SLOT_LABELS = {
     '08:00-10:00':'8:00 – 10:00 AM',
@@ -632,6 +633,9 @@ function generateSchedulePDF({ bookings, labs, title, subtitle, rangeLabel }) {
 
   // For single-day: grid view; for range: list grouped by date
   const isRange = rangeLabel && rangeLabel.includes('→');
+
+  // Only show approved bookings in PDF
+  bookings = bookings.filter(b => b.status === 'approved');
 
   // Build grid for single-day
   const grid = {};
@@ -729,20 +733,7 @@ td{border:1px solid #e2e8f0;vertical-align:top;padding:0}
   </div>
 </div>
 
-<div class="stats">
-  <div class="stat"><div class="stat-val">${labs.length}</div><div class="stat-lbl">Labs</div></div>
-  <div class="stat"><div class="stat-val">${bookings.length}</div><div class="stat-lbl">Total Sessions</div></div>
-  <div class="stat"><div class="stat-val green">${approved}</div><div class="stat-lbl">Approved</div></div>
-  <div class="stat"><div class="stat-val yellow">${pending}</div><div class="stat-lbl">Pending</div></div>
-  <div class="stat"><div class="stat-val red">${rejected}</div><div class="stat-lbl">Rejected</div></div>
-</div>
 
-<div class="legend">
-  <span style="font-size:10px;font-weight:600;color:#374151">Status:</span>
-  <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div>Approved</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>Pending</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>Rejected</div>
-</div>
 
 ${!isRange ? `
 <div class="section-title">Timetable Grid</div>
@@ -830,6 +821,7 @@ function SchedulePage({ apiPrefix }) {
   const [view, setView] = useState('grid');
   const [filterType, setFilterType] = useState('all'); // 'all'|'lab'|'batch'
   const [filterValue, setFilterValue] = useState('');
+  const [batchFilter, setBatchFilter] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -903,6 +895,7 @@ function SchedulePage({ apiPrefix }) {
           <option value="day_lab">Today — By Lab</option>
           <option value="day_batch">Today — By Batch</option>
           <option value="semester">Whole Semester</option>
+          <option value="semester_batch">Whole Semester — By Batch</option>
         </select>
         {filterType === 'day_lab' && (
           <select value={filterValue} onChange={e => setFilterValue(e.target.value)}
@@ -918,26 +911,37 @@ function SchedulePage({ apiPrefix }) {
             {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
           </select>
         )}
-        {filterType === 'semester' && (
+        {(filterType === 'semester' || filterType === 'semester_batch') && (
           <select value={filterValue} onChange={e => setFilterValue(e.target.value)}
             style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
             <option value="">Select semester</option>
             {semesters.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
           </select>
         )}
+        {filterType === 'semester_batch' && (
+          <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}>
+            <option value="">Select batch</option>
+            {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+          </select>
+        )}
         <button
           onClick={async () => {
-            if (filterType === 'semester') {
+            if (filterType === 'semester' || filterType === 'semester_batch') {
               if (!filterValue) { alert('Please select a semester'); return; }
+              if (filterType === 'semester_batch' && !batchFilter) { alert('Please select a batch'); return; }
               try {
                 const r = await api.get(`/${apiPrefix}/schedule/semester/${filterValue}`);
                 const sem = semesters.find(s => s._id === filterValue);
+                const batchObj = filterType === 'semester_batch' ? batches.find(b => b._id === batchFilter) : null;
                 generateSchedulePDF({
                   bookings: r.data.bookings,
                   labs: r.data.labs,
-                  title: 'Semester Lab Schedule',
+                  title: batchObj ? `Semester Schedule — ${batchObj.name}` : 'Semester Lab Schedule',
                   subtitle: sem?.name || 'Semester',
                   rangeLabel: `${new Date(r.data.semester?.startDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} → ${new Date(r.data.semester?.endDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`,
+                  batchId: batchObj ? batchFilter : null,
+                  batchName: batchObj?.name,
                 });
               } catch(e) { alert('Failed to load semester data'); }
             } else {
